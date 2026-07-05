@@ -155,7 +155,7 @@ engine.states.tailor = {
     font.drawTextO('SNIPS THE TAILOR', 10, 8, CO.paper, 2)
     sprites.draw('coinS', VW - 60, 9)
     font.drawTextO('' .. run.gold, VW - 50, 9, CO.gold, 1)
-    font.drawText('< ' .. TAB_LABEL[tl.tab] .. ' >', VW / 2, 18, CO.foam, 1, 'center')
+    font.drawText('< ' .. TAB_LABEL[tl.tab] .. ' >', VW / 2, 20, CO.foam, 1, 'center')
 
     if tl.tab == 'sails' then
       local coop = game.isCoop()

@@ -271,7 +271,7 @@ function M.draw()
         font.drawText('@', ux + 12, uy - 5, CO.red, 1)
       end
       if u.side == 'p' and isCoop and not u.acted then
-        font.drawText(u.owner == 'p2' and 'P2' or 'P1', ux - 2, uy + 12,
+        font.drawText(u.owner == 'p2' and 'P2' or 'P1', ux - 3, uy + 11,
           u.owner == 'p2' and CO.green or CO.gold, 1)
       end
     end

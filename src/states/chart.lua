@@ -111,10 +111,10 @@ engine.states.chart = {
         sprites.draw(b.icon, VW / 2 - 66, VH - 38)
         font.drawTextO(b.name .. ' - ' .. b.twist, VW / 2 + 8, VH - 34, CO.foam, 1, 'center')
       end
-      font.drawTextO('SET SAIL FOR SEA ' .. ch.toSea .. '! (Z)', VW / 2, VH - 20, CO.gold, 1, 'center')
+      font.drawTextO('SET SAIL FOR SEA ' .. ch.toSea .. '! (' .. input.promptKey(input.p1, 'a') .. ')', VW / 2, VH - 20, CO.gold, 1, 'center')
     elseif not ch.advancing then
       font.drawTextO('SEA ' .. ch.fromSea .. ' OF ' .. n, VW / 2, VH - 26, CO.paper, 1, 'center')
-      font.drawTextO('X BACK TO SAILING', VW / 2, VH - 14, CO.gray, 1, 'center')
+      font.drawTextO(input.promptKey(input.p1, 'b') .. ' BACK TO SAILING', VW / 2, VH - 14, CO.gray, 1, 'center')
     end
   end,
 }

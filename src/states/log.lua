@@ -108,7 +108,7 @@ engine.states.log = {
 
     gfx.setColor(CO.ink)
     gfx.rectangle('fill', 0, VH - 14, VW, 14)
-    font.drawText('X BACK   C: ' .. (lg.tab == 'treasure' and 'SECRETS' or 'TREASURE'),
+    font.drawText(input.promptKey(input.p1, 'b') .. ' BACK   ' .. input.promptKey(input.p1, 'crew') .. ': ' .. (lg.tab == 'treasure' and 'SECRETS' or 'TREASURE'),
       VW / 2, VH - 10, CO.gray, 1, 'center')
   end,
 }

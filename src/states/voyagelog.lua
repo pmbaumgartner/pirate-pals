@@ -61,7 +61,7 @@ engine.states.voyagelog = {
 
     gfx.setColor(CO.ink)
     gfx.rectangle('fill', 0, VH - 14, VW, 14)
-    font.drawText('UP/DOWN SCROLL   B BACK', VW / 2, VH - 10, CO.gray, 1, 'center')
+    font.drawText('UP/DOWN SCROLL   ' .. input.promptKey(input.p1, 'b') .. ' BACK', VW / 2, VH - 10, CO.gray, 1, 'center')
   end,
 }
 

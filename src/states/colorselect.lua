@@ -182,10 +182,10 @@ engine.states.colorSelect = {
     if cs.p2 then
       font.drawTextO(colorAt(cs.p1.i).name, VW / 2 - 70, nameY, CO.gold, 1, 'center')
       font.drawTextO(colorAt(cs.p2.i).name, VW / 2 + 70, nameY, CO.green, 1, 'center')
-      font.drawTextO('P1: WASD + Z   P2: ARROWS + N   X BACK', VW / 2, VH - 10, CO.foam, 1, 'center')
+      font.drawTextO('P1: WASD + ' .. input.promptKey(input.p1, 'a') .. '   P2: ARROWS + ' .. input.promptKey(input.p2, 'a') .. '   ' .. input.promptKey(input.p1, 'b') .. ' BACK', VW / 2, VH - 10, CO.foam, 1, 'center')
     else
       font.drawTextO(colorAt(cs.p1.i).name, VW / 2, nameY, CO.paper, 1, 'center')
-      font.drawTextO('< > PICK - Z SAIL - X BACK', VW / 2, VH - 10, CO.foam, 1, 'center')
+      font.drawTextO('< > PICK - ' .. input.promptKey(input.p1, 'a') .. ' SAIL - ' .. input.promptKey(input.p1, 'b') .. ' BACK', VW / 2, VH - 10, CO.foam, 1, 'center')
     end
   end,
 }
