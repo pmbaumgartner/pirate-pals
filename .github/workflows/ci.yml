@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  luacheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y lua-check
+      - run: luacheck .
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - run: make test LUA=lua5.4
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LÖVE and xvfb
+        run: |
+          sudo apt-get update && sudo apt-get install -y xvfb
+          curl -fsSL -o love.AppImage \
+            https://github.com/love2d/love/releases/download/11.5/love-11.5-x86_64.AppImage
+          chmod +x love.AppImage
+      - name: Run smoke test
+        run: xvfb-run -a ./love.AppImage --appimage-extract-and-run . --smoke --shots
+      # Per-state PNGs for human eyeballing (no golden-image diffing); the
+      # automated visual gate is the bounds invariant inside the smoke run.
+      - name: Upload state screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-shots
+          path: ~/.local/share/love/pirate-pals/*.png
+          if-no-files-found: warn
