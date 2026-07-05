@@ -199,12 +199,43 @@ local function resolveSeaBiome(lv, boss, biome)
   return (boss and 'calm') or biome or M.rollBiome(lv)
 end
 
-local function freeTile(t, spawn, minX)
-  for _ = 1, 60 do
+-- Preferred hex gap between placed sea features (chests, port, specials,
+-- enemies); freeTile relaxes it to 2 and finally to "any open water", so
+-- crowded maps degrade to mild adjacency rather than failing generation.
+local SEA_SPACING = 3
+
+local function freeTile(t, spawn, minX, placed)
+  local function pick()
     local fx, fy = util.irand(minX, M.SEA_W - 2), util.irand(0, M.SEA_H - 1)
     if t[fy][fx] == M.T_WATER and grid.hexDistance(fx, fy, spawn.x, spawn.y) > 2 then
-      return { x = fx, y = fy }
+      return fx, fy
     end
+  end
+  local function accept(fx, fy)
+    local p = { x = fx, y = fy }
+    placed[#placed + 1] = p
+    return p
+  end
+
+  for d = SEA_SPACING, 2, -1 do
+    for _ = 1, 40 do
+      local fx, fy = pick()
+      if fx then
+        local ok = true
+        for _, p in ipairs(placed) do
+          if grid.hexDistance(fx, fy, p.x, p.y) < d then
+            ok = false
+            break
+          end
+        end
+        if ok then return accept(fx, fy) end
+      end
+    end
+  end
+
+  for _ = 1, 60 do
+    local fx, fy = pick()
+    if fx then return accept(fx, fy) end
   end
   return nil
 end
@@ -230,10 +261,10 @@ end
 -- Sea events (4.2): the quest X (if a bottle marked this sea) plus at most
 -- one bottle/trader tile. Never on the boss sea. `questPlaced` tells the
 -- caller whether an outstanding quest X found a home this attempt.
-local function placeSpecials(t, spawn, lv, boss)
+local function placeSpecials(t, spawn, lv, boss, placed)
   local specials, questPlaced = {}, false
   if not boss and M.run.quest and M.run.quest.sea == lv then
-    local q = freeTile(t, spawn, 4)
+    local q = freeTile(t, spawn, 4, placed)
     if q then
       t[q.y][q.x] = M.T_X
       questPlaced = true
@@ -241,7 +272,7 @@ local function placeSpecials(t, spawn, lv, boss)
     end
   end
   if not boss and lv >= 2 and util.chance(0.6) then
-    local ev = freeTile(t, spawn, 3)
+    local ev = freeTile(t, spawn, 3, placed)
     if ev then
       -- Bottles only where a "later sea" exists and no map is already held.
       local pool = { M.T_TRADER }
@@ -253,10 +284,10 @@ local function placeSpecials(t, spawn, lv, boss)
   return specials, questPlaced
 end
 
-local function placeEnemies(t, spawn, lv, boss)
+local function placeEnemies(t, spawn, lv, boss, placed)
   local enemies = {}
   if boss then
-    local bp = freeTile(t, spawn, 10)
+    local bp = freeTile(t, spawn, 10, placed)
     if bp then
       -- Golden Compass (5.3): a completed 12/12 treasure log permanently
       -- extends the voyage to sea 9, a tougher rematch (see ship_battle's
@@ -269,7 +300,7 @@ local function placeEnemies(t, spawn, lv, boss)
     end
   else
     for _ = 1, math.min(2 + math.floor(lv / 2), 4) do
-      local e = freeTile(t, spawn, 8)
+      local e = freeTile(t, spawn, 8, placed)
       if e and not M.enemyAtList(enemies, e.x, e.y) then
         enemies[#enemies + 1] = {
           x = e.x, y = e.y, lv = lv, name = util.pick(data.FOE_CAPTAINS),
@@ -360,20 +391,22 @@ function M.genSea(lv, biome)
     end
     local spawn = { x = 1, y = 4 }
     local exit = nil
+    local placed = {}
     if not boss then
       exit = { x = M.SEA_W - 1, y = util.irand(2, 6) }
       t[exit.y][exit.x] = M.T_EXIT
+      placed[#placed + 1] = exit
     end
 
     placeIslands(t, spawn, exit)
 
-    local port = freeTile(t, spawn, 3)
+    local port = freeTile(t, spawn, 3, placed)
     if port then t[port.y][port.x] = M.T_PORT end
 
     local chests = {}
     if not boss then
       for _ = 1, util.irand(2, 3) do
-        local c = freeTile(t, spawn, 2)
+        local c = freeTile(t, spawn, 2, placed)
         if c then
           t[c.y][c.x] = M.T_CHEST
           chests[#chests + 1] = c
@@ -381,8 +414,8 @@ function M.genSea(lv, biome)
       end
     end
 
-    local specials, questPlaced = placeSpecials(t, spawn, lv, boss)
-    local enemies = placeEnemies(t, spawn, lv, boss)
+    local specials, questPlaced = placeSpecials(t, spawn, lv, boss, placed)
+    local enemies = placeEnemies(t, spawn, lv, boss, placed)
 
     if seaReachable(t, spawn, exit, port, chests, specials, enemies, boss) then
       M.run.sea = {

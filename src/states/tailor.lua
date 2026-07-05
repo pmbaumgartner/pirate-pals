@@ -19,7 +19,7 @@ local VW, VH = 320, 180
 local tl = nil
 
 local TABS = { 'shop', 'bench', 'sails' }
-local TAB_LABEL = { shop = 'SHOP', bench = 'WAITING AT THE PORT', sails = 'SAILS' }
+local TAB_LABEL = { shop = 'SHOP', bench = 'PORT', sails = 'SAILS' }
 
 local function shopItems()
   local items = {}
@@ -152,9 +152,9 @@ engine.states.tailor = {
     for yy = 4, VH - 9, 14 do
       gfx.rectangle('fill', 4, yy, VW - 8, 1)
     end
-    font.drawTextO('SNIPS THE TAILOR', 10, 8, CO.paper, 2)
-    sprites.draw('coinS', VW - 60, 9)
-    font.drawTextO('' .. run.gold, VW - 50, 9, CO.gold, 1)
+    font.drawTextO('SNIPS THE TAILOR', 10, 6, CO.paper, 2)
+    sprites.draw('coinS', VW - 60, 7)
+    font.drawTextO('' .. run.gold, VW - 50, 7, CO.gold, 1)
     font.drawText('< ' .. TAB_LABEL[tl.tab] .. ' >', VW / 2, 20, CO.foam, 1, 'center')
 
     if tl.tab == 'sails' then

@@ -89,10 +89,18 @@ function M.drawHexOutline(cx, cy)
   gfx.polygon('line', hexOutlineV)
 end
 
--- Small chevron marking where an up/down press will land.
-function M.drawChevron(cx, cy, dy)
+local CHEVRON_DIR = { up = { 0, -1 }, down = { 0, 1 }, left = { -1, 0 }, right = { 1, 0 } }
+
+-- Small chevron marking where a d-pad press will land: apex 2px out in the
+-- travel direction, rows widening back toward the hex center.
+function M.drawChevron(cx, cy, dir)
+  local dx, dy = CHEVRON_DIR[dir][1], CHEVRON_DIR[dir][2]
   for r = 0, 2 do
-    gfx.rectangle('fill', cx - r, cy + r * dy - dy, r * 2 + 1, 1)
+    if dy ~= 0 then
+      gfx.rectangle('fill', cx - r, cy + (2 - r) * dy, r * 2 + 1, 1)
+    else
+      gfx.rectangle('fill', cx + (2 - r) * dx, cy - r, 1, r * 2 + 1)
+    end
   end
 end
 

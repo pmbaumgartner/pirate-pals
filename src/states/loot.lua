@@ -50,6 +50,23 @@ local function receivingCaptain(owner)
   return nil
 end
 
+-- Two-column option picker shared by the perk and trade cards: columns at
+-- VW/2 +-42, selection outline, sprite, then centered name/desc. `card`
+-- returns the per-option looks (outline/name/desc colors, sprite, and the
+-- sprite's half-width for centering).
+local function drawOptionPair(part, top, oh, card)
+  for i = 1, 2 do
+    local opt = part.options[i]
+    local cx = VW / 2 + (i == 1 and -42 or 42)
+    local sel = part.choice == i
+    local c = card(opt, i, sel)
+    if sel then ui.outline(cx - 32, top, 64, oh, c.outline) end
+    sprites.draw(c.sprite, cx - c.sw, top + 4, false, 2)
+    font.drawText(opt.name, cx, top + 20, c.name, 1, 'center')
+    font.drawText(opt.desc, cx, top + 28, c.desc, 1, 'center')
+  end
+end
+
 function M.start(partsList, title)
   loot = { parts = partsList, i = 0, title = title, done = false }
   M.loot = loot
@@ -165,7 +182,7 @@ engine.states.loot = {
     if loot.done or loot.i >= #loot.parts then return end
 
     local part = loot.parts[loot.i + 1]
-    local bw, bx, by, bh = 200, (VW - 200) / 2, 84, 66
+    local bw, bx, by, bh = 200, (VW - 200) / 2, 84, 70
     gfx.setColor(CO.uiBg)
     gfx.rectangle('fill', bx, by, bw, bh)
     ui.outline(bx, by, bw, bh, CO.gold)
@@ -215,28 +232,26 @@ engine.states.loot = {
       elseif legend then
         font.drawText(legend[1], VW / 2 + 16, by + 40, CO.gray, 1, 'center')
       end
-      font.drawText('Z YES / X NO', VW / 2 + 16, by + 50, CO.paper, 1, 'center')
+      font.drawText(input.promptKey(input.p1, 'a') .. ' YES / ' .. input.promptKey(input.p1, 'b') .. ' NO', VW / 2 + 16, by + 50, CO.paper, 1, 'center')
     elseif part.type == 'clear' then
       font.drawText('SEA CLEAR!', VW / 2, by + 10, CO.gold, 2, 'center')
       font.drawText('BONUS +' .. part.n .. ' GOLD', VW / 2, by + 34, CO.paper, 1, 'center')
     elseif part.type == 'perk' then
       font.drawText(part.pirate.name .. ' LEVEL ' .. part.pirate.lvl .. '!', VW / 2, by + 4, CO.gold, 1, 'center')
-      font.drawText('PICK A PERK!', VW / 2, by + 13, CO.paper, 1, 'center')
-      for i = 1, 2 do
-        local opt = part.options[i]
-        local ox = VW / 2 + (i == 1 and -50 or 10)
-        local sel = part.choice == i
-        if sel then ui.outline(ox - 4, by + 22, 44, 40, CO.gold) end
-        sprites.draw('perk_' .. opt.icon, ox + 6, by + 26, false, 2)
-        font.drawText(opt.name, ox + 20, by + 48, sel and CO.gold or CO.white, 1, 'center')
-        font.drawText(opt.desc, ox + 20, by + 56, CO.green, 1, 'center')
-      end
-      local perkHint = '< > PICK   Z CONFIRM'
+      font.drawText('PICK A PERK!', VW / 2, by + 12, CO.paper, 1, 'center')
+      drawOptionPair(part, by + 19, 40, function(opt, _, sel)
+        return {
+          outline = CO.gold, sprite = 'perk_' .. opt.icon, sw = 8,
+          name = sel and CO.gold or CO.white, desc = CO.green,
+        }
+      end)
+      local perkHint = '< > PICK   ' .. input.promptKey(input.p1, 'a') .. ' CONFIRM'
       if game.isCoop() then
         local owner = game.ownerOf(part.pirate)
-        perkHint = ownerTag(owner) .. ' PICKS!  < >  ' .. (owner == 'p2' and 'N' or 'Z') .. ' CONFIRM'
+        local ctx = owner == 'p2' and input.p2 or input.p1
+        perkHint = ownerTag(owner) .. ' PICKS!  < >  ' .. input.promptKey(ctx, 'a') .. ' CONFIRM'
       end
-      font.drawText(perkHint, VW / 2, by + 62, CO.paper, 1, 'center')
+      font.drawText(perkHint, VW / 2, by + 63, CO.paper, 1, 'center')
     elseif part.type == 'bond' then
       font.drawText('BEST MATES!', VW / 2, by + 8, CO.gold, 2, 'center')
       font.drawText(part.a .. ' @ ' .. part.b, VW / 2, by + 30, CO.white, 1, 'center')
@@ -247,16 +262,15 @@ engine.states.loot = {
       font.drawText('X MARKS SEA ' .. part.sea .. '!', VW / 2, by + 46, CO.white, 1, 'center')
     elseif part.type == 'trade' then
       font.drawText('TRADE?', VW / 2, by + 4, CO.gold, 1, 'center')
-      for i = 1, 2 do
-        local opt = part.options[i]
-        local ox = VW / 2 + (i == 1 and -50 or 10)
-        local sel = part.choice == i
-        if sel then ui.outline(ox - 4, by + 13, 44, 41, opt.ok and CO.gold or CO.grayD) end
-        sprites.draw(i == 1 and 'gemS' or 'coinS', ox + 13, by + 18, false, 2)
-        font.drawText(opt.name, ox + 20, by + 36, not opt.ok and CO.grayD or (sel and CO.gold or CO.white), 1, 'center')
-        font.drawText(opt.desc, ox + 20, by + 44, opt.ok and CO.green or CO.grayD, 1, 'center')
-      end
-      font.drawText('< > PICK   Z CONFIRM', VW / 2, by + 62, CO.paper, 1, 'center')
+      drawOptionPair(part, by + 16, 42, function(opt, i, sel)
+        return {
+          outline = opt.ok and CO.gold or CO.grayD,
+          sprite = i == 1 and 'gemS' or 'coinS', sw = 7,
+          name = not opt.ok and CO.grayD or (sel and CO.gold or CO.white),
+          desc = opt.ok and CO.green or CO.grayD,
+        }
+      end)
+      font.drawText('< > PICK   ' .. input.promptKey(input.p1, 'a') .. ' CONFIRM', VW / 2, by + 63, CO.paper, 1, 'center')
     end
 
     for i = 0, #loot.parts - 1 do
@@ -265,7 +279,7 @@ engine.states.loot = {
     end
     -- perk/trade draw their hint above, inside the card; recruit has its own
     if part.type ~= 'perk' and part.type ~= 'trade' and part.type ~= 'recruit' then
-      font.drawText('Z NEXT', VW / 2, 168, CO.gray, 1, 'center')
+      font.drawText(input.promptKey(input.p1, 'a') .. ' NEXT', VW / 2, 168, CO.gray, 1, 'center')
     end
   end,
 }

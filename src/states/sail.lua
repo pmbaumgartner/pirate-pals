@@ -45,6 +45,21 @@ local function seaCols()
   return BIOME_SEA[game.run.sea.biome] or BIOME_SEA.calm
 end
 
+local function drawMovePreview(sh, playerColor, gt)
+  if not sh.anim and not sh.route then
+    local pulse = 0.3 + 0.18 * math.sin(gt * 4)
+    for _, dir in ipairs({ 'left', 'right', 'up', 'down' }) do
+      local tx, ty = hexStep(sh.x, sh.y, dir, sh.face)
+      if inSea(tx, ty) and game.tileAt(tx, ty) ~= game.T_ISLE then
+        local cx, cy = hexCenter(tx, ty)
+        gfx.setColor(playerColor[1], playerColor[2], playerColor[3], pulse)
+        drawHexOutline(cx, cy)
+        drawChevron(cx, cy, dir)
+      end
+    end
+  end
+end
+
 engine.states.sail = {
   -- Every path back to sail mode (new game, next sea, port, crew/log menus,
   -- battle win/loss) routes through here, so this is the one autosave point.
@@ -204,19 +219,11 @@ engine.states.sail = {
 
     local sh = run.ship
 
-    -- Preview where up/down will land (the facing-picked diagonal) so the
-    -- 6-direction steps are readable on a 4-way d-pad.
-    if not sh.anim and not sh.route then
-      local pulse = 0.3 + 0.18 * math.sin(gt * 4)
-      for _, dir in ipairs({ 'up', 'down' }) do
-        local tx, ty = hexStep(sh.x, sh.y, dir, sh.face)
-        if inSea(tx, ty) and game.tileAt(tx, ty) ~= game.T_ISLE then
-          local cx, cy = hexCenter(tx, ty)
-          gfx.setColor(CO.foam[1], CO.foam[2], CO.foam[3], pulse)
-          drawHexOutline(cx, cy)
-          drawChevron(cx, cy, dir == 'up' and -1 or 1)
-        end
-      end
+    drawMovePreview(sh, CO.foam, gt)
+    if run.mode == 'captains' and run.ship2 and not run.ship2.convoy then
+      -- P2's preview matches their green ship/convoy accents so the two
+      -- captains can tell whose chevrons are whose.
+      drawMovePreview(run.ship2, CO.green, gt)
     end
 
     -- Route breadcrumbs while the autopilot is sailing.
