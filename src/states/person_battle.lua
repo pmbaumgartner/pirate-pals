@@ -133,6 +133,9 @@ local function useSpecial(player, u)
       for _, t in ipairs(model.targetsOf(u, 1)) do
         model.damage(u, t, u.atk + u.buff + 2, res, {})
       end
+      for _, cr in ipairs(model.adjacentCrates(u)) do
+        model.smashCrate(u, cr.x, cr.y)
+      end
       finishUnit(player, u)
     end, 'good', model.ownerPlayer(u))
   elseif r == 'medic' then
@@ -150,7 +153,12 @@ local function confirmTarget(player)
   local u = pl.sel
   local tgt = pl.targets[pl.tIdx + 1]
   if pl.action == 'attack' then
-    doAttack(player, u, tgt, {})
+    if tgt.isCrate then
+      model.smashCrate(u, tgt.x, tgt.y)
+      finishUnit(player, u)
+    else
+      doAttack(player, u, tgt, {})
+    end
   elseif pl.action == 'heal' then
     tgt.hp = math.min(tgt.max, tgt.hp + 8)
     SFX.heal()
@@ -168,20 +176,11 @@ local function confirmTarget(player)
       finishUnit(player, u)
     end, 'good', model.ownerPlayer(u))
   elseif pl.action == 'shove' then
-    -- Slide the target up to 2 tiles; hitting something early adds BONK damage.
-    local ex, ey, slid, path = model.slideTarget(u, tgt, 2)
-    tgt.x, tgt.y = ex, ey
+    local outcome = model.slideTarget(u, tgt, 2)
     SFX.push()
-    local bonk = slid < 2
     pl.stage = 'busy'
-    model.walk(tgt, path, function()
-      local tx, ty = model.px(tgt.x, tgt.y)
-      local dmg = 3 + (bonk and 2 or 0)
-      tgt.hp = math.max(0, tgt.hp - dmg)
-      SFX.hit()
-      engine.addParts(tx + 8, ty + 8, 8, CO.orange, 45)
-      engine.addFloat(tx + 8, ty - 4, (bonk and 'BONK! ' or '') .. '-' .. dmg, CO.white, bonk and 2 or 1)
-      if tgt.hp <= 0 then model.breakOrKo(tgt) end
+    model.walk(tgt, outcome.path, function()
+      model.applySlideImpact(tgt, outcome.impact)
       finishUnit(player, u)
     end)
   end
@@ -248,7 +247,7 @@ local function updatePlayer(player, locked, barOwner)
         SFX.sel()
         local path = grid.bfsPath(pl.reach, cu.x, cu.y)
         pl.stage = 'busy'
-        model.walk(su, path, function()
+        model.walkWithTerrain(su, path, function()
           pl.stage = 'act'
           pl.menu = 0
         end)
@@ -279,7 +278,11 @@ local function updatePlayer(player, locked, barOwner)
       end
       if it.id == 'atk' then
         SFX.sel()
-        pl.action, pl.targets, pl.tIdx = 'attack', model.targetsOf(pl.sel, pl.sel.range), 0
+        local tgts = model.targetsOf(pl.sel)
+        for _, c in ipairs(model.adjacentCrates(pl.sel)) do
+          tgts[#tgts + 1] = c
+        end
+        pl.action, pl.targets, pl.tIdx = 'attack', tgts, 0
         pl.stage = 'target'
       elseif it.id == 'grd' then
         SFX.sel()
@@ -329,6 +332,7 @@ local function newPb(units, crates, lv, foe, isBoss, deckInfo)
     phase = 'party',
     deck = deckInfo.deck, deckList = deckInfo.deckList, eastEdge = deckInfo.eastEdge,
     deckId = deckInfo.id, w = deckInfo.w, h = deckInfo.h, ox = ox, oy = oy,
+    ice = deckInfo.ice, vent = deckInfo.vent, perch = deckInfo.perch,
     pl = { p1 = mkPl(0, 0), p2 = mkPl(0, 0) },
     walk = nil, wait = 0, next = nil, co = nil, queue = {}, hazards = {},
     flags = {}, over = false, defeated = {},
@@ -369,7 +373,7 @@ end
 -- fixed src.data.DECKS id.
 function M.start(foe, compOverride, deckOverride)
   local lv = foe.lv
-  local deckInfo = model.buildDeck(deckOverride or model.pickDeckId(lv))
+  local deckInfo = model.buildDeck(deckOverride or model.pickDeckId(lv), game.run.sea and game.run.sea.biome)
   local units = {}
   local partyCap = game.partyCap()
   local pSpawns = deckInfo.pSpawns
@@ -386,8 +390,25 @@ function M.start(foe, compOverride, deckOverride)
     }
   end
   local comp = compOverride or game.compFor(lv, game.run.sea and game.run.sea.biome)
+  local compCopy = {}
+  for _, r in ipairs(comp) do compCopy[#compCopy + 1] = r end
+  if deckInfo.choke and lv >= 2 then
+    local hasRanged = false
+    for _, roleKey in ipairs(compCopy) do
+      local er = data.EROLES[roleKey]
+      if er and er.range > 1 then hasRanged = true; break end
+    end
+    if not hasRanged then
+      for i, roleKey in ipairs(compCopy) do
+        if roleKey == 'grunt' then
+          compCopy[i] = 'gunner'
+          break
+        end
+      end
+    end
+  end
   local eSpawns = deckInfo.eSpawns
-  for i, roleKey in ipairs(comp) do
+  for i, roleKey in ipairs(compCopy) do
     local er = data.EROLES[roleKey]
     local sp = eSpawns[(i - 1) % #eSpawns + 1]
     units[#units + 1] = {

@@ -82,8 +82,7 @@ end
 
 -- Read-only preview of confirmTarget's shove slide, for the destination ghost.
 local function shoveDestination(u, tgt)
-  local ex, ey, slid = model.slideTarget(u, tgt, 2)
-  return ex, ey, slid < 2
+  return model.slideTarget(u, tgt, 2)
 end
 
 -- lo-hi(!) label plus one line per modifier note, stacked upward from
@@ -100,6 +99,22 @@ local function drawDamagePreview(cx, topY, pv)
       font.drawTextO(n .. '!', cx, ny, CO.foam, 1, 'center')
     end
     ny = ny + 7
+  end
+end
+
+local function drawHeatTile(x, y, active, gt)
+  local hx, hy = model.px(x, y)
+  if active then
+    local pulse = math.floor(gt * 6) % 2 == 0
+    gfx.setColor(CO.red[1], CO.red[2], CO.red[3], pulse and 0.55 or 0.25)
+    gfx.rectangle('fill', hx + 1, hy + 1, 14, 14)
+    ui.outline(hx + 1, hy + 1, 14, 14, CO.red)
+  else
+    gfx.setColor(CO.woodD)
+    gfx.rectangle('fill', hx + 2, hy + 2, 12, 12)
+    local dimPulse = 0.15 + 0.1 * math.sin(gt * 3)
+    gfx.setColor(CO.orange[1], CO.orange[2], CO.orange[3], dimPulse)
+    gfx.rectangle('fill', hx + 4, hy + 4, 8, 8)
   end
 end
 
@@ -127,9 +142,14 @@ function M.draw()
     local tx, ty = model.px(t[1], t[2])
     gfx.rectangle('fill', tx - 2, ty - 2, 20, 20)
   end
-  gfx.setColor(CO.wood)
   for _, t in ipairs(pb.deckList) do
     local tx, ty = model.px(t[1], t[2])
+    local k = grid.gk(t[1], t[2])
+    if pb.ice and pb.ice[k] then
+      gfx.setColor(0.6, 0.8, 1.0)
+    else
+      gfx.setColor(CO.wood)
+    end
     gfx.rectangle('fill', tx, ty, 16, 16)
   end
   gfx.setColor(CO.woodD)
@@ -155,10 +175,17 @@ function M.draw()
   end
 
   -- Crates and surrender flags.
+  if pb.perch then
+    local px, py = model.px(pb.perch[1], pb.perch[2])
+    sprites.draw('perch', px, py)
+  end
   for kk in pairs(pb.crates) do
     local x, y = grid.parseKey(kk)
     local cx, cy = model.px(x, y)
     sprites.draw('crate', cx, cy)
+  end
+  if pb.vent then
+    drawHeatTile(pb.vent.x, pb.vent.y, pb.vent.cycle == 2, gt)
   end
   for i, f in ipairs(pb.flags) do
     local fx, fy = model.px(f.x, f.y)
@@ -167,11 +194,7 @@ function M.draw()
 
   -- Telegraphed SLAM tiles: pulse red for the full player-turn they warn.
   for _, hz in ipairs(pb.hazards) do
-    local hx, hy = model.px(hz.x, hz.y)
-    local pulse = math.floor(gt * 6) % 2 == 0
-    gfx.setColor(CO.red[1], CO.red[2], CO.red[3], pulse and 0.55 or 0.25)
-    gfx.rectangle('fill', hx + 1, hy + 1, 14, 14)
-    ui.outline(hx + 1, hy + 1, 14, 14, CO.red)
+    drawHeatTile(hz.x, hz.y, true, gt)
   end
 
   -- Target highlights + attack/shove previews on the picked target.
@@ -186,13 +209,13 @@ function M.draw()
             ui.outline(tx, ty, 16, 16, pl.action == 'heal' and CO.green or CO.gold)
           end
           local atkBase, popts = previewParamsFor(pl)
-          if atkBase then
+          if atkBase and not tg.isCrate then
             drawDamagePreview(tx + 8, ty - 24, model.previewDamage(pl.sel, tg, atkBase, popts))
           elseif pl.action == 'shove' then
-            local ex, ey, bonk = shoveDestination(pl.sel, tg)
-            local ghx, ghy = model.px(ex, ey)
+            local outcome = shoveDestination(pl.sel, tg)
+            local ghx, ghy = model.px(outcome.x, outcome.y)
             ui.outline(ghx, ghy, 16, 16, CO.orange, 0.6)
-            if bonk then font.drawTextO('BONK +2!', ghx + 8, ghy - 12, CO.orange, 1, 'center') end
+            if outcome.impact.preview then font.drawTextO(outcome.impact.preview, ghx + 8, ghy - 12, CO.orange, 1, 'center') end
           end
         else
           ui.outline(tx, ty, 16, 16, pl.action == 'heal' and CO.green or CO.red, 0.4)
@@ -248,10 +271,11 @@ function M.draw()
           end
         end
       end
+      local tint = u.soggy and { 0.5, 0.7, 1.0 } or nil
       if u.role == 'king' then
-        sprites.draw(sprites.kingSprite(u.bars), ux + qx, uy, u.side == 'e', qScale, qAlpha)
+        sprites.draw(sprites.kingSprite(u.bars), ux + qx, uy, u.side == 'e', qScale, qAlpha, tint)
       else
-        sprites.drawPirate(u.role, u.side == 'p' and u.out or 'none', ux + qx, uy, u.side == 'e', qScale, qAlpha, u.color)
+        sprites.drawPirate(u.role, u.side == 'p' and u.out or 'none', ux + qx, uy, u.side == 'e', qScale, qAlpha, u.color, tint)
       end
       ui.drawBar(ux + 2, uy - 3, 12, 2, u.hp / u.max)
       if u.bars then
@@ -282,17 +306,21 @@ function M.draw()
   -- enemy-turn noise), plus a red pulse on the threatened pal that reads
   -- identically to the SLAM hazard telegraph.
   if pb.phase == 'party' then
+    local intentIcons = { attack = 'icon_sword', move = 'icon_move', smash = 'icon_planks' }
     for _, u in ipairs(pb.units) do
       if u.alive and u.intent then
         local ux, uy = model.px(u.x, u.y)
         -- Bare icon, no ui.drawIntentIcon badge: on this 16px grid an
         -- opaque plate blots out whatever stands in the cell above, and
         -- white icons already carry enough contrast on the brown deck.
-        sprites.draw(u.intent.kind == 'attack' and 'icon_sword' or 'icon_move', ux + 2, uy - 12)
+        sprites.draw(intentIcons[u.intent.kind] or 'icon_move', ux + 2, uy - 12)
         if u.intent.kind == 'attack' and u.intent.target and u.intent.target.alive
           and math.floor(gt * 6) % 2 == 0 then
           local tx, ty = model.px(u.intent.target.x, u.intent.target.y)
           ui.outline(tx, ty, 16, 16, CO.red)
+        elseif u.intent.kind == 'smash' and u.intent.x and math.floor(gt * 6) % 2 == 0 then
+          local tx, ty = model.px(u.intent.x, u.intent.y)
+          ui.outline(tx, ty, 16, 16, CO.orange)
         end
       end
     end
@@ -303,7 +331,19 @@ function M.draw()
     for _, player in ipairs({ 'p1', 'p2' }) do
       local pl = pb.pl[player]
       if (pl.stage == 'pick' or pl.stage == 'move') and (player == 'p1' or isCoop) then
-        local cx, cy = model.px(pl.cursor.x, pl.cursor.y)
+        local cx, cy
+        if pl.stage == 'move' and pl.reach and pl.reach.cost[grid.gk(pl.cursor.x, pl.cursor.y)] then
+          local path = grid.bfsPath(pl.reach, pl.cursor.x, pl.cursor.y)
+          if path and #path >= 2 then
+            local adjustedPath = model.adjustPathForIce(path, pl.sel)
+            local last = adjustedPath[#adjustedPath]
+            cx, cy = model.px(last[1], last[2])
+          else
+            cx, cy = model.px(pl.cursor.x, pl.cursor.y)
+          end
+        else
+          cx, cy = model.px(pl.cursor.x, pl.cursor.y)
+        end
         local pulse = math.floor(gt * 5) % 2 == 0 and 0 or 1
         ui.drawCursor(cx - pulse, cy - pulse, 16 + pulse * 2, player == 'p2' and CO.green or CO.gold)
       end

@@ -54,7 +54,7 @@ end
 -- Parse a src.data.DECKS template into deck geometry: the walkable mask, a
 -- flat list of its tiles (for random sampling), spawn bands, crate-eligible
 -- tiles, and the per-row east edge the thief chases toward.
-function M.buildDeck(tplId)
+function M.buildDeck(tplId, biome)
   local tpl
   for _, t in ipairs(data.DECKS) do
     if t.id == tplId then tpl = t; break end
@@ -63,7 +63,8 @@ function M.buildDeck(tplId)
   local rows = tpl.rows
   local h = #rows
   local w = #rows[1]
-  local deck, deckList, pSpawns, eSpawns, crateCand = {}, {}, {}, {}, {}
+  local deck, deckList, pSpawns, eSpawns, crateCand, preCrates = {}, {}, {}, {}, {}, {}
+  local perch = nil
   for y = 0, h - 1 do
     local row = rows[y + 1]
     for x = 0, w - 1 do
@@ -73,10 +74,60 @@ function M.buildDeck(tplId)
         deckList[#deckList + 1] = { x, y }
         if ch == 'P' then pSpawns[#pSpawns + 1] = { x, y }
         elseif ch == 'E' then eSpawns[#eSpawns + 1] = { x, y }
-        elseif ch == 'c' then crateCand[#crateCand + 1] = { x, y } end
+        elseif ch == 'c' then crateCand[#crateCand + 1] = { x, y }
+        elseif ch == 'b' then preCrates[gk(x, y)] = true
+        elseif ch == '^' then perch = { x, y } end
       end
     end
   end
+
+  local openTiles = {}
+  local pSpawnsSet = {}
+  for _, p in ipairs(pSpawns) do pSpawnsSet[gk(p[1], p[2])] = true end
+  local eSpawnsSet = {}
+  for _, e in ipairs(eSpawns) do eSpawnsSet[gk(e[1], e[2])] = true end
+
+  for _, t in ipairs(deckList) do
+    local k = gk(t[1], t[2])
+    if not pSpawnsSet[k] and not eSpawnsSet[k] and not preCrates[k] and (not perch or (perch[1] ~= t[1] or perch[2] ~= t[2])) then
+      openTiles[#openTiles + 1] = t
+    end
+  end
+
+  local ice = {}
+  if biome == 'icy' then
+    local candidates = {}
+    for _, t in ipairs(openTiles) do
+      local isAdj = false
+      for i = 1, 4 do
+        local nx = t[1] + grid.DIRS4[i][1]
+        local ny = t[2] + grid.DIRS4[i][2]
+        if nx >= 0 and nx < w and ny >= 0 and ny < h and not deck[gk(nx, ny)] then
+          isAdj = true
+          break
+        end
+      end
+      if isAdj then
+        candidates[#candidates + 1] = t
+      end
+    end
+    if #candidates > 0 then
+      local n = math.min(util.irand(1, 2), #candidates)
+      for _ = 1, n do
+        local idx = util.irand(1, #candidates)
+        local t = table.remove(candidates, idx)
+        ice[gk(t[1], t[2])] = true
+        if #candidates == 0 then break end
+      end
+    end
+  end
+
+  local vent = nil
+  if biome == 'volcano' and #openTiles > 0 then
+    local t = openTiles[util.irand(1, #openTiles)]
+    vent = { x = t[1], y = t[2], cycle = 1, damage = 3 }
+  end
+
   local eastEdge = {}
   for y = 0, h - 1 do
     for x = w - 1, 0, -1 do
@@ -84,9 +135,10 @@ function M.buildDeck(tplId)
     end
   end
   return {
-    id = tpl.id, logText = tpl.logText, w = w, h = h, deck = deck, deckList = deckList,
+    id = tpl.id, logText = tpl.logText, choke = tpl.choke, w = w, h = h, deck = deck, deckList = deckList,
     pSpawns = centerSort(pSpawns, h), eSpawns = centerSort(eSpawns, h),
-    crateCand = crateCand, eastEdge = eastEdge,
+    crateCand = crateCand, preCrates = preCrates, perch = perch,
+    ice = ice, vent = vent, eastEdge = eastEdge,
   }
 end
 
@@ -111,11 +163,46 @@ end
 
 -- Random crate scatter: only ever lands on 'c'-marked tiles, never
 -- on a spawn band or plain '#' deck.
+local function checkConnectivity(deckInfo, crates)
+  local start = deckInfo.pSpawns[1]
+  if not start then return false end
+  local startK = gk(start[1], start[2])
+  if crates[startK] then return false end
+
+  local visited = { [startK] = true }
+  local q = { start }
+  local head = 1
+  while head <= #q do
+    local curr = q[head]
+    head = head + 1
+    for i = 1, 4 do
+      local nx = curr[1] + grid.DIRS4[i][1]
+      local ny = curr[2] + grid.DIRS4[i][2]
+      local nk = gk(nx, ny)
+      if deckInfo.deck[nk] and not crates[nk] and not visited[nk] then
+        visited[nk] = true
+        q[#q + 1] = { nx, ny }
+      end
+    end
+  end
+
+  for _, p in ipairs(deckInfo.pSpawns) do
+    if not visited[gk(p[1], p[2])] then return false end
+  end
+  for _, e in ipairs(deckInfo.eSpawns) do
+    if not visited[gk(e[1], e[2])] then return false end
+  end
+  return true
+end
+
 function M.scatterCrates(deckInfo)
   local crates = {}
+  if deckInfo.preCrates then
+    for k, v in pairs(deckInfo.preCrates) do crates[k] = v end
+  end
   local cand = deckInfo.crateCand
   if #cand == 0 then return crates end
-  local n = math.min(util.irand(4, 6), #cand)
+  local n = math.min(util.irand(3, 4) + math.floor(#deckInfo.deckList / 30), #cand)
   local tries, count = 0, 0
   while count < n and tries < n * 20 do
     tries = tries + 1
@@ -123,7 +210,11 @@ function M.scatterCrates(deckInfo)
     local k = gk(t[1], t[2])
     if not crates[k] then
       crates[k] = true
-      count = count + 1
+      if checkConnectivity(deckInfo, crates) then
+        count = count + 1
+      else
+        crates[k] = nil
+      end
     end
   end
   return crates
@@ -142,22 +233,42 @@ function M.moveCursor(cx, cy, dx, dy)
   return cx, cy
 end
 
--- Shared shove-slide resolution: how far a shoved target travels
--- from its own tile before the deck edge, a hole, a crate, or another unit
--- stops it. Read-only — the path includes every intermediate tile so both
--- the real move (person_battle.lua) and the preview ghost (draw.lua) render
--- identically.
+local SLIDE_DAMAGE = { base = 3, bonk = 2, splash = 4 }
+
+local function slideImpact(stop)
+  local dmg = SLIDE_DAMAGE.base
+  if stop == 'edge' then
+    dmg = dmg + SLIDE_DAMAGE.splash
+    return { kind = 'splash', damage = dmg, preview = 'SPLASH! -' .. dmg, label = 'SPLASH! -' .. dmg, soggy = true }
+  elseif stop == 'blocked' then
+    dmg = dmg + SLIDE_DAMAGE.bonk
+    return { kind = 'bonk', damage = dmg, preview = 'BONK +' .. SLIDE_DAMAGE.bonk .. '!', label = 'BONK! -' .. dmg }
+  end
+  return { kind = 'hit', damage = dmg, label = '-' .. dmg }
+end
+
+-- Shared shove-slide resolution: how far a shoved target travels from its own
+-- tile before the deck edge, a hole, a crate, or another unit stops it. The
+-- returned outcome owns the path plus any combat consequence so callers do not
+-- need to remember damage constants or stop reasons.
 function M.slideTarget(u, tgt, maxSteps)
   local dx, dy = tgt.x - u.x, tgt.y - u.y
-  local path = { { tgt.x, tgt.y } }
-  local ex, ey, slid = tgt.x, tgt.y, 0
+  local out = { x = tgt.x, y = tgt.y, steps = 0, stop = 'max', path = { { tgt.x, tgt.y } } }
   for _ = 1, maxSteps do
-    local nx, ny = ex + dx, ey + dy
-    if not M.inDeck(nx, ny) or S.pb.crates[gk(nx, ny)] or M.unitAt(nx, ny) then break end
-    ex, ey, slid = nx, ny, slid + 1
-    path[#path + 1] = { nx, ny }
+    local nx, ny = out.x + dx, out.y + dy
+    if not M.inDeck(nx, ny) then
+      out.stop = 'edge'
+      break
+    end
+    if S.pb.crates[gk(nx, ny)] or M.unitAt(nx, ny) then
+      out.stop = 'blocked'
+      break
+    end
+    out.x, out.y, out.steps = nx, ny, out.steps + 1
+    out.path[#out.path + 1] = { nx, ny }
   end
-  return ex, ey, slid, path
+  out.impact = slideImpact(out.stop)
+  return out
 end
 
 function M.unitAt(x, y)
@@ -226,10 +337,28 @@ function M.reachFor(u)
   end)
 end
 
+function M.attackRangeAt(u, x, y)
+  local r = u.range
+  if r > 1 and S.pb.perch and x == S.pb.perch[1] and y == S.pb.perch[2] then
+    return r + 1
+  end
+  return r
+end
+
+function M.attackRange(u)
+  return M.attackRangeAt(u, u.x, u.y)
+end
+
+function M.canAttack(att, def, range)
+  return def.alive and def.side ~= att.side
+    and grid.manhattan(att.x, att.y, def.x, def.y) <= (range or M.attackRange(att))
+end
+
 function M.targetsOf(u, range)
   local out = {}
+  range = range or M.attackRange(u)
   for _, o in ipairs(S.pb.units) do
-    if o.alive and o.side ~= u.side and grid.manhattan(u.x, u.y, o.x, o.y) <= range then
+    if M.canAttack(u, o, range) then
       out[#out + 1] = o
     end
   end
@@ -318,6 +447,19 @@ function M.breakOrKo(u)
   M.ko(u)
 end
 
+function M.applyTileDamage(x, y, dmg)
+  local hx, hy = M.px(x, y)
+  engine.shakeIt(2, 0.2)
+  engine.addParts(hx + 8, hy + 8, 14, CO.orange, 55)
+  local u = M.unitAt(x, y)
+  if u then
+    u.hp = math.max(0, u.hp - dmg)
+    SFX.hit()
+    engine.addFloat(hx + 8, hy - 4, '-' .. dmg, CO.red, 2)
+    if u.hp <= 0 then M.breakOrKo(u) end
+  end
+end
+
 -- Best Mates (3.4): +1 ATK while adjacent to your bonded pal.
 function M.bondBonus(att)
   if att.side ~= 'p' or not att.ref then return 0 end
@@ -340,6 +482,10 @@ end
 function M.applyMods(dmg, att, def, opts)
   opts = opts or {}
   local notes = {}
+  if S.pb.perch and att.x == S.pb.perch[1] and att.y == S.pb.perch[2] then
+    dmg = dmg + 1
+    notes[#notes + 1] = 'PERCH'
+  end
   local shell = def.role == 'crab' and att.x <= def.x
   if def.guard or shell then
     dmg = math.ceil(dmg / 2)
@@ -496,7 +642,7 @@ end
 
 function M.actMenu(u)
   local items = {
-    { id = 'atk', label = 'ATTACK', ok = #M.targetsOf(u, u.range) > 0 },
+    { id = 'atk', label = 'ATTACK', ok = (#M.targetsOf(u) > 0) or (#M.adjacentCrates(u) > 0) },
     { id = 'grd', label = 'GUARD', ok = true },
   }
   local sd = data.ROLES[u.role].spec
@@ -509,6 +655,113 @@ function M.actMenu(u)
   items[#items + 1] = { id = 'spc', label = sd.name, ok = sOk, desc = sd.desc }
   items[#items + 1] = { id = 'stay', label = 'STAY', ok = true }
   return items
+end
+
+function M.adjacentCrates(u)
+  local out = {}
+  for i = 1, 4 do
+    local cx = u.x + grid.DIRS4[i][1]
+    local cy = u.y + grid.DIRS4[i][2]
+    local k = gk(cx, cy)
+    if S.pb.crates[k] then
+      out[#out + 1] = { x = cx, y = cy, isCrate = true, name = 'CRATE' }
+    end
+  end
+  return out
+end
+
+function M.smashCrate(u, cx, cy)
+  local k = gk(cx, cy)
+  if not S.pb.crates[k] then return end
+  S.pb.crates[k] = nil
+  SFX.hit()
+  local px, py = M.px(cx, cy)
+  engine.addFloat(px + 8, py - 4, 'CRUNCH!', CO.woodL, 1.5)
+  engine.addParts(px + 8, py + 8, 12, CO.wood, 45)
+  engine.addParts(px + 8, py + 8, 8, CO.woodD, 35)
+
+  if util.chance(1 / 6) then
+    game.run.gold = game.run.gold + 1
+    SFX.coin()
+    engine.addFloat(px + 8, py - 16, '+1 GOLD', CO.gold, 2)
+  end
+end
+
+function M.applySlideImpact(u, impact)
+  if not impact then return end
+  local tx, ty = M.px(u.x, u.y)
+  u.hp = math.max(0, u.hp - impact.damage)
+  if impact.soggy then
+    u.soggy = true
+    if u.role == 'thief' and u.loot then
+      u.loot = nil
+      engine.addFloat(tx + 8, ty - 16, 'GOT THE GOLD BACK!', CO.gold, 2)
+    end
+  end
+  if impact.kind == 'splash' then
+    SFX.splash()
+    engine.addParts(tx + 8, ty + 8, 20, CO.foam, 50)
+    engine.addFloat(tx + 8, ty - 4, impact.label, CO.white, 2)
+  else
+    SFX.hit()
+    engine.addParts(tx + 8, ty + 8, 8, CO.orange, 45)
+    engine.addFloat(tx + 8, ty - 4, impact.label, CO.white, impact.kind == 'bonk' and 2 or 1)
+  end
+  if u.hp <= 0 then M.breakOrKo(u) end
+end
+
+function M.adjustPathForIce(path, u)
+  if not path or #path < 2 then return path end
+  local last = path[#path]
+  if S.pb.ice and S.pb.ice[gk(last[1], last[2])] then
+    local prev = path[#path - 1]
+    local dx = last[1] - prev[1]
+    local dy = last[2] - prev[2]
+    local virtualPusher = { x = last[1] - dx, y = last[2] - dy }
+    local virtualTarget = { x = last[1], y = last[2] }
+    local slide = M.slideTarget(virtualPusher, virtualTarget, 1)
+    if slide.steps > 0 then
+      local newPath = {}
+      for i, step in ipairs(path) do newPath[i] = step end
+      newPath[#newPath + 1] = { slide.x, slide.y }
+      return newPath
+    elseif slide.impact.kind == 'splash' then
+      local newPath = {}
+      for i, step in ipairs(path) do newPath[i] = step end
+      newPath.terrainImpact = slide.impact
+      return newPath
+    end
+  end
+  return path
+end
+
+function M.walkWithTerrain(u, path, after)
+  path = M.adjustPathForIce(path, u)
+  M.walk(u, path, function()
+    if path and path.terrainImpact then M.applySlideImpact(u, path.terrainImpact) end
+    if after then after() end
+  end)
+  return path
+end
+
+function M.findBlockedCrateStep(u, target)
+  local field = grid.bfsFlood(target.x, target.y, 99, function(x, y)
+    return M.inDeck(x, y)
+  end)
+  local cx, cy = u.x, u.y
+  local bd = field.cost[gk(cx, cy)]
+  if bd == nil then return nil end
+  for k = 1, 4 do
+    local nx = cx + grid.DIRS4[k][1]
+    local ny = cy + grid.DIRS4[k][2]
+    local nd = field.cost[gk(nx, ny)]
+    if nd ~= nil and nd < bd then
+      if S.pb.crates[gk(nx, ny)] then
+        return nx, ny
+      end
+    end
+  end
+  return nil
 end
 
 return M

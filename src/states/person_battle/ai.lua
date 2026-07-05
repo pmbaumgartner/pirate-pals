@@ -49,22 +49,20 @@ local function resolveHazards()
   for _, hz in ipairs(pb.hazards) do
     hz.turnsLeft = hz.turnsLeft - 1
     if hz.turnsLeft <= 0 then
-      local hx, hy = model.px(hz.x, hz.y)
-      engine.shakeIt(2, 0.2)
-      engine.addParts(hx + 8, hy + 8, 14, CO.orange, 55)
-      local u = model.unitAt(hz.x, hz.y)
-      if u then
-        local dmg = 6
-        u.hp = math.max(0, u.hp - dmg)
-        SFX.hit()
-        engine.addFloat(hx + 8, hy - 4, '-' .. dmg, CO.red, 2)
-        if u.hp <= 0 then model.breakOrKo(u) end
-      end
+      model.applyTileDamage(hz.x, hz.y, hz.damage or 6)
     else
       remaining[#remaining + 1] = hz
     end
   end
   pb.hazards = remaining
+
+  if pb.vent then
+    pb.vent.cycle = pb.vent.cycle + 1
+    if pb.vent.cycle > 2 then
+      pb.vent.cycle = 1
+      model.applyTileDamage(pb.vent.x, pb.vent.y, pb.vent.damage or 3)
+    end
+  end
 end
 
 -- Test-only: the real game pumps pb.co one resume per frame from
@@ -112,6 +110,28 @@ end
 -- not actually close to stopRange.
 local function walkToward(u, target, stopRange, after)
   local pb = S.pb
+  if u.side == 'e' and u.role == 'gunner' and pb.perch then
+    local px, py = pb.perch[1], pb.perch[2]
+    local o = model.unitAt(px, py)
+    if not o or o == u then
+      local reach = grid.bfsFlood(u.x, u.y, u.move, function(x, y)
+        if not model.inDeck(x, y) or pb.crates[gk(x, y)] then return false end
+        local ou = model.unitAt(x, y)
+        return not ou or ou == u
+      end)
+      if reach.cost[gk(px, py)] ~= nil then
+        local targetRange = model.attackRangeAt(u, px, py)
+        if grid.manhattan(px, py, target.x, target.y) <= targetRange then
+          local pPath = grid.bfsPath(reach, px, py)
+          if pPath then
+            model.walkWithTerrain(u, pPath, after)
+            return
+          end
+        end
+      end
+    end
+  end
+
   local field = grid.bfsFlood(target.x, target.y, 99, function(x, y)
     return model.inDeck(x, y) and not pb.crates[gk(x, y)]
   end)
@@ -134,7 +154,8 @@ local function walkToward(u, target, stopRange, after)
     if not stepped then break end
     if grid.manhattan(cx, cy, target.x, target.y) <= stopRange then break end
   end
-  model.walk(u, path, after)
+
+  model.walkWithTerrain(u, path, after)
 end
 
 -- Coroutine-blocking wrapper around walkToward, for the foe-turn chain
@@ -287,8 +308,12 @@ local function thiefActCo(foe)
       if cx >= pb.eastEdge[cy] then break end
     end
     local done = false
-    model.walk(foe, path, function() done = true end)
+    model.walkWithTerrain(foe, path, function() done = true end)
     while not done do coroutine.yield() end
+    if not foe.alive then
+      if not model.checkEnd() then wait(0.3); nextFoeCo() end
+      return
+    end
     if foe.x >= pb.eastEdge[foe.y] then thiefEscapeCo(foe)
     else wait(0.3); nextFoeCo() end
     return
@@ -340,7 +365,36 @@ function M.planFoeIntents()
     if u.side == 'e' and u.alive and not u.boss and u.role ~= 'thief' then
       local best, bestD = pickTarget(u)
       if best then
-        u.intent = { kind = bestD <= u.range and 'attack' or 'move', target = best }
+        local uRange = model.attackRange(u)
+        if bestD <= uRange then
+          u.intent = { kind = 'attack', target = best }
+        else
+          local field = grid.bfsFlood(best.x, best.y, 99, function(x, y)
+            return model.inDeck(x, y) and not S.pb.crates[gk(x, y)]
+          end)
+          local canMove = false
+          local bd = field.cost[gk(u.x, u.y)]
+          if bd ~= nil then
+            for k = 1, 4 do
+              local nx, ny = u.x + grid.DIRS4[k][1], u.y + grid.DIRS4[k][2]
+              local nd = field.cost[gk(nx, ny)]
+              if nd ~= nil and nd < bd and not model.unitAt(nx, ny) then
+                canMove = true
+                break
+              end
+            end
+          end
+          if not canMove then
+            local cx, cy = model.findBlockedCrateStep(u, best)
+            if cx then
+              u.intent = { kind = 'smash', target = best, x = cx, y = cy }
+            else
+              u.intent = { kind = 'move', target = best }
+            end
+          else
+            u.intent = { kind = 'move', target = best }
+          end
+        end
       end
     end
   end
@@ -364,6 +418,12 @@ nextFoeCo = function()
       if u.side == 'p' then
         u.acted = false
         u.guard = false
+        if u.soggy and u.alive then
+          u.acted = true
+          u.soggy = false
+          local ux, uy = model.px(u.x, u.y)
+          engine.addFloat(ux + 8, uy - 12, 'GLUB!', CO.blue, 1.5)
+        end
       end
     end
     pb.phase = 'party'
@@ -371,6 +431,15 @@ nextFoeCo = function()
     model.cursorToNext('p1')
     if game.isCoop() then model.cursorToNext('p2') end
     M.planFoeIntents()
+    return
+  end
+
+  if foe.soggy then
+    foe.soggy = false
+    local fx, fy = model.px(foe.x, foe.y)
+    engine.addFloat(fx + 8, fy - 12, 'GLUB!', CO.blue, 1.5)
+    wait(0.6)
+    nextFoeCo()
     return
   end
 
@@ -394,14 +463,31 @@ nextFoeCo = function()
     nextFoeCo()
     return
   end
-  if bestD <= foe.range then
+  local fRange = model.attackRange(foe)
+  if bestD <= fRange then
     foeAttackCo(foe, best)
     return
   end
 
-  walkTowardCo(foe, best, foe.range)
-  if grid.manhattan(foe.x, foe.y, best.x, best.y) <= foe.range then foeAttackCo(foe, best)
-  else wait(0.3); nextFoeCo() end
+  local sx, sy = foe.x, foe.y
+  walkTowardCo(foe, best, fRange)
+
+  if foe.x == sx and foe.y == sy and not model.canAttack(foe, best) then
+    local cx, cy = model.findBlockedCrateStep(foe, best)
+    if cx then
+      model.smashCrate(foe, cx, cy)
+      wait(0.5)
+      nextFoeCo()
+      return
+    end
+  end
+
+  if model.canAttack(foe, best) then
+    foeAttackCo(foe, best)
+  else
+    wait(0.3)
+    nextFoeCo()
+  end
 end
 
 -- Kind auto-act (C4 solo-collapse, stage 2): after P2 has been idle well
@@ -432,16 +518,16 @@ function M.autoAct(u)
   local ux, uy = model.px(u.x, u.y)
   engine.addFloat(ux + 8, uy - 10, 'AUTO!', CO.green, 1)
   local function strike()
-    if best.alive and grid.manhattan(u.x, u.y, best.x, best.y) <= u.range then
+    if model.canAttack(u, best) then
       model.damage(u, best, u.atk + u.buff + util.irand(0, 1), 'good', {})
     end
     finishAuto()
   end
-  if bestD <= u.range then
+  if model.canAttack(u, best) then
     strike()
     return
   end
-  walkToward(u, best, u.range, strike)
+  walkToward(u, best, model.attackRange(u), strike)
 end
 
 return M

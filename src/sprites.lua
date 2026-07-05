@@ -167,6 +167,25 @@ local CRATE = {
   "................",
   "................" }
 
+local PERCH = {
+  "................",
+  "....KKKKKKKK....",
+  "...KbBBBBBBbK...",
+  "..KbBYYBYYBYbK..",
+  "..KbBYYBYYBYbK..",
+  "..KbBBBBBBBBbK..",
+  ".KbBBBBBBBBBBbK.",
+  "KbBYYBYYBYYBYYbK",
+  "KbBYYBYYBYYBYYbK",
+  "KbBBBBBBBBBBBBbK",
+  "KbBYYBYYBYYBYYbK",
+  "KbBYYBYYBYYBYYbK",
+  "KbBBBBBBBBBBBBbK",
+  ".KbbbbbbbbbbbbK.",
+  "..KKKKKKKKKKKK..",
+  "................"
+}
+
 local CHEST = {
   "................",
   "................",
@@ -272,6 +291,21 @@ local ICON_SWORD = {
   ".YY.........",
   "YYYY........",
   ".YY.........",
+  "............",
+}
+
+local ICON_PLANKS = {
+  "............",
+  ".bB......Bb.",
+  "..bB....Bb..",
+  "...bB..Bb...",
+  "....bBBb....",
+  ".....bB.....",
+  "....bBBb....",
+  "...bB..Bb...",
+  "..bB....Bb..",
+  ".bB......Bb.",
+  "............",
   "............",
 }
 
@@ -581,8 +615,10 @@ function M.build()
   makeSprite('icon_fix', ICON_FIX)
   makeSprite('icon_move', ICON_MOVE)
   makeSprite('icon_sword', ICON_SWORD)
+  makeSprite('icon_planks', ICON_PLANKS)
   makeSprite('kingSil', KING_SIL)
   makeSprite('crate', CRATE)
+  makeSprite('perch', PERCH)
   makeSprite('chest', CHEST)
   makeSprite('port', PORT)
   makeSprite('bottleT', BOTTLE_T)
@@ -631,12 +667,14 @@ function M.build()
   end
 end
 
-function M.draw(name, x, y, flip, scale, alpha)
+function M.draw(name, x, y, flip, scale, alpha, tint)
   local s = SPR[name]
   if not s then return end
   scale = scale or 1
   x, y = util.round(x), util.round(y)
-  gfx.setColor(1, 1, 1, alpha or 1)
+  local r, g, b = 1, 1, 1
+  if tint then r, g, b = tint[1], tint[2], tint[3] end
+  gfx.setColor(r, g, b, alpha or 1)
   if flip then
     gfx.draw(s, x + s:getWidth() * scale, y, 0, -scale, scale)
   else
@@ -673,16 +711,16 @@ function M.shipSprite(colorId)
   return 'shipP'
 end
 
-function M.drawPirate(roleKey, outfit, x, y, flip, scale, alpha, colorId)
+function M.drawPirate(roleKey, outfit, x, y, flip, scale, alpha, colorId, tint)
   scale = scale or 1
   local body = 'pir_' .. roleKey
   if colorId and SPR[body .. '_' .. colorId] then body = body .. '_' .. colorId end
-  M.draw(body, x, y, flip, scale, alpha)
+  M.draw(body, x, y, flip, scale, alpha, tint)
   local od = OUTFIT_DRAW[outfit]
   if od then
-    if od.hat then M.draw(od.hat, x, y, flip, scale, alpha) end
+    if od.hat then M.draw(od.hat, x, y, flip, scale, alpha, tint) end
     if od.side then
-      M.draw(od.side, flip and (x - 3 * scale) or (x + 11 * scale), y + 3 * scale, flip, scale, alpha)
+      M.draw(od.side, flip and (x - 3 * scale) or (x + 11 * scale), y + 3 * scale, flip, scale, alpha, tint)
     end
   end
 end

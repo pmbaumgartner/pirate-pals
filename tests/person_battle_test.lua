@@ -159,17 +159,36 @@ ok(ranOk2, 'thief turn runs without error at the mask edge: ' .. tostring(err2))
 ok(thief.escaped, 'thief should escape once at the mask east edge, regardless of column')
 ok(game.run.gold == 5, 'escaping thief should take its held gold')
 
--- Shove-into-hole: sliding toward a hole/mask edge stops there,
--- never placing the target off-mask.
+-- Shove-into-hole: sliding toward a hole/mask edge stops on the edge tile,
+-- then the shared impact helper applies SPLASH damage/soggy/loot-drop.
 local gangplank = model.buildDeck('gangplank')
 ok(not gangplank.deck[grid.gk(5, 0)], 'expected a hole at (5,0) in the gangplank template')
-S.pb = { units = {}, crates = {}, deck = gangplank.deck }
 local pusher = mkUnit({ side = 'p', x = 3, y = 0 })
-local pushed = mkUnit({ side = 'e', x = 4, y = 0 })
-S.pb.units = { pusher, pushed }
-local ex, ey, slid = model.slideTarget(pusher, pushed, 2)
-ok(gangplank.deck[grid.gk(ex, ey)] ~= nil, 'shoved target must land on a deck tile, not a hole')
-ok(ex == 4 and ey == 0 and slid == 0, 'shove into an adjacent hole should not move the target at all')
+local pushed = mkUnit({ side = 'e', role = 'thief', x = 4, y = 0, hp = 10, loot = 5 })
+S.pb = { units = { pusher, pushed }, crates = {}, hazards = {}, flags = {}, defeated = {}, deck = gangplank.deck, ox = 0, oy = 0 }
+local shove = model.slideTarget(pusher, pushed, 2)
+ok(gangplank.deck[grid.gk(shove.x, shove.y)] ~= nil, 'shoved target must land on a deck tile, not a hole')
+ok(shove.x == 4 and shove.y == 0 and shove.steps == 0 and shove.impact.kind == 'splash',
+  'shove into adjacent hole stops at edge and returns a splash impact')
+pushed.x, pushed.y = shove.x, shove.y
+model.applySlideImpact(pushed, shove.impact)
+ok(pushed.soggy, 'shoved unit should be soggy')
+ok(pushed.hp == 3, 'shoved unit should take 7 damage from splash')
+ok(pushed.loot == nil, 'soggy thief should drop carried gold')
+
+-- Perch range is the canonical attack range, not a call-site convention.
+local shooter = mkUnit({ side = 'p', x = 2, y = 2, range = 3 })
+local farFoe = mkUnit({ side = 'e', x = 6, y = 2 })
+freshPb({ shooter, farFoe })
+S.pb.perch = { 2, 2 }
+ok(model.attackRange(shooter) == 4, 'perch adds +1 range to ranged units')
+ok(model.canAttack(shooter, farFoe), 'canAttack uses perch-boosted range')
+
+-- Test crate smash
+local crateAttacker = mkUnit({ side = 'p', x = 1, y = 1 })
+S.pb.crates[grid.gk(2, 1)] = true
+model.smashCrate(crateAttacker, 2, 1)
+ok(S.pb.crates[grid.gk(2, 1)] == nil, 'crate should be removed after smash')
 
 if fails > 0 then
   print(fails .. ' FAILURES')

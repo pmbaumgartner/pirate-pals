@@ -3,6 +3,19 @@
 -- the new biome/quest run shapes. Run from the project root with any
 -- Lua 5.1+: `lua tests/biome_test.lua`.
 package.path = './?.lua;' .. package.path
+
+love = {
+  graphics = {},
+  audio = {},
+  sound = {},
+  math = { random = math.random },
+  filesystem = {
+    getInfo = function() return nil end,
+    write = function() end,
+    read = function() return nil end,
+  },
+}
+
 local grid = require 'src.grid'
 local serialize = require 'src.serialize'
 
@@ -58,6 +71,56 @@ ok(back.sea.rocks[1].x == 5 and back.sea.rocks[1].t == 1.25, 'rock entries survi
 ok(back.sea.shipHurt == 3, 'shipHurt survives')
 ok(back.quest.sea == 5, 'quest survives')
 ok(back.nextBiome.biome == 'volcano', 'nextBiome survives')
+
+-- Biome deck overlay checks
+local data = require 'src.data'
+local model = require 'src.states.person_battle.model'
+
+for _, tpl in ipairs(data.DECKS) do
+  local icyDeck = model.buildDeck(tpl.id, 'icy')
+  local pSpawnsSet = {}
+  for _, p in ipairs(icyDeck.pSpawns) do pSpawnsSet[grid.gk(p[1], p[2])] = true end
+  local eSpawnsSet = {}
+  for _, e in ipairs(icyDeck.eSpawns) do eSpawnsSet[grid.gk(e[1], e[2])] = true end
+
+  if icyDeck.ice then
+    for k in pairs(icyDeck.ice) do
+      ok(icyDeck.deck[k] == true, tpl.id .. ': icy tile ' .. k .. ' is not walkable deck')
+      ok(not pSpawnsSet[k], tpl.id .. ': icy tile ' .. k .. ' overlaps with P spawn')
+      ok(not eSpawnsSet[k], tpl.id .. ': icy tile ' .. k .. ' overlaps with E spawn')
+      if icyDeck.perch then
+        ok(k ~= grid.gk(icyDeck.perch[1], icyDeck.perch[2]), tpl.id .. ': icy tile ' .. k .. ' overlaps with perch')
+      end
+      if icyDeck.preCrates then
+        ok(not icyDeck.preCrates[k], tpl.id .. ': icy tile ' .. k .. ' overlaps with preCrates')
+      end
+    end
+  end
+
+  local volcanoDeck = model.buildDeck(tpl.id, 'volcano')
+  if volcanoDeck.vent then
+    local vk = grid.gk(volcanoDeck.vent.x, volcanoDeck.vent.y)
+    ok(volcanoDeck.deck[vk] == true, tpl.id .. ': vent tile ' .. vk .. ' is not walkable deck')
+    ok(not pSpawnsSet[vk], tpl.id .. ': vent tile ' .. vk .. ' overlaps with P spawn')
+    ok(not eSpawnsSet[vk], tpl.id .. ': vent tile ' .. vk .. ' overlaps with E spawn')
+    if volcanoDeck.perch then
+      ok(vk ~= grid.gk(volcanoDeck.perch[1], volcanoDeck.perch[2]), tpl.id .. ': vent tile ' .. vk .. ' overlaps with perch')
+    end
+    if volcanoDeck.preCrates then
+      ok(not volcanoDeck.preCrates[vk], tpl.id .. ': vent tile ' .. vk .. ' overlaps with preCrates')
+    end
+  end
+end
+
+-- Serialization of ice and vent
+local battleState = {
+  ice = { ['3,3'] = true },
+  vent = { x = 2, y = 2, cycle = 1 }
+}
+local backBattle = serialize.decode(serialize.encode(battleState))
+ok(backBattle ~= nil, 'battleState decodes successfully')
+ok(backBattle.ice['3,3'] == true, 'serialize: ice survives')
+ok(backBattle.vent.x == 2 and backBattle.vent.cycle == 1, 'serialize: vent survives')
 
 if fails > 0 then
   print(fails .. ' FAILURES')

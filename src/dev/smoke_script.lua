@@ -236,22 +236,104 @@ expect(game.run.gold == 25, 'trade buy did not cost 15 gold')
 tap('z') -- the inserted treasure card
 wait(1.0)
 
--- Crab + thief boarding via the comp override; run a few turns so the
--- crab's shell and the thief's grab/flee AI both execute.
+-- Crab + thief boarding on gangplank; script a crate smash and a shove-SPLASH
+-- so both new verbs execute headlessly every CI run.
 game.run.gold = 30
-personBattle.start(game.run.sea.enemies[1], { 'crab', 'thief' })
+personBattle.start(game.run.sea.enemies[1], { 'crab', 'thief' }, 'gangplank')
 expect(engine.cur == 'personBattle', 'comp-override boarding did not start')
+wait(0.2) -- let the state transition settle
+
 local hasCrab, hasThief = false, false
+local thief = nil
 for _, u in ipairs(personBattle.pb.units) do
   if u.role == 'crab' then hasCrab = true end
-  if u.role == 'thief' then hasThief = true end
+  if u.role == 'thief' then hasThief = true; thief = u end
 end
 expect(hasCrab and hasThief, 'comp override did not spawn the crab + thief')
-for _ = 1, 8 do
-  tap('z')
-  wait(0.4)
+
+local pb = personBattle.pb
+local cappy = pb.units[1]
+cappy.x, cappy.y = 0, 0
+cappy.fx, cappy.fy = 0, 0
+pb.crates = { [grid.gk(1, 0)] = true }
+
+for _, u in ipairs(pb.units) do
+  if u.side == 'e' then
+    u.x, u.y = 8, 1
+    u.fx, u.fy = 8, 1
+  end
 end
+
+require('src.states.person_battle.ai').planFoeIntents()
+
+pb.pl.p1.cursor.x, pb.pl.p1.cursor.y = 0, 0
+tap('z') -- select Cappy
+wait(0.2)
+tap('z') -- stay
+wait(0.2)
+tap('z') -- select ATTACK
+wait(0.2)
+tap('z') -- confirm attack on crate
+wait(0.3)
+expect(pb.crates[grid.gk(1, 0)] == nil, 'crate should be smashed')
+
+local fin = pb.units[2]
+fin.acted = false
+fin.x, fin.y = 3, 0
+fin.fx, fin.fy = 3, 0
+thief.x, thief.y = 4, 0
+thief.fx, thief.fy = 4, 0
+thief.hp = 10
+thief.soggy = false
+
+pb.pl.p1.sel = nil
+pb.pl.p1.stage = 'pick'
+pb.pl.p1.cursor.x, pb.pl.p1.cursor.y = 3, 0
+
+tap('z') -- select Fin
+wait(0.2)
+tap('z') -- stay
+wait(0.2)
+tap('down')
+wait(0.1)
+tap('down')
+wait(0.1)
+tap('z') -- select SHOVE
+wait(0.2)
+tap('z') -- confirm target (thief)
+wait(0.6)
+expect(thief.soggy, 'thief should be soggy after splash')
+expect(thief.hp == 3, 'thief should take 7 damage from splash (10 - 7 = 3)')
 shot('gimmick')
+
+-- New shape-gallery pass: exercise BFS + intents on every non-classic deck,
+-- and screenshot icy/volcano variants on tidepool and barricade.
+local shapes = { 'gangplank', 'lshape', 'twinDecks', 'crowsnest', 'bigDeck', 'barricade', 'tidepool' }
+local oldSea = game.run.sea
+for _, id in ipairs(shapes) do
+  if id == 'tidepool' then
+    game.run.sea = { lv = 3, biome = 'icy', enemies = oldSea.enemies }
+  elseif id == 'barricade' then
+    game.run.sea = { lv = 3, biome = 'volcano', enemies = oldSea.enemies }
+  else
+    game.run.sea = { lv = 3, biome = 'calm', enemies = oldSea.enemies }
+  end
+  personBattle.start(game.run.sea.enemies[1], nil, id)
+  expect(engine.cur == 'personBattle', 'failed to start ' .. id)
+  wait(0.5)
+  if id == 'tidepool' then
+    shot('deck-tidepool-icy')
+  elseif id == 'barricade' then
+    shot('deck-barricade-volcano')
+  else
+    shot('deck-' .. id)
+  end
+  require('src.states.person_battle.ai').startFoePhase()
+  wait(1.5)
+end
+game.run.sea = oldSea
+engine.setState('sail')
+wait(0.3)
 
 -- The Pirate King: sea 8 special-cases into the boss ship + boarding fight.
 game.run.voyage.sea = 8

@@ -290,6 +290,18 @@ M.scenarios = {
     personBattle.start(game.run.sea.enemies[1], nil, 'bigDeck')
   end,
 
+  ['boarding-barricade'] = function()
+    game.newGame()
+    game.genSea(5)
+    personBattle.start(game.run.sea.enemies[1], nil, 'barricade')
+  end,
+
+  ['boarding-tidepool'] = function()
+    game.newGame()
+    game.genSea(5)
+    personBattle.start(game.run.sea.enemies[1], nil, 'tidepool')
+  end,
+
   -- Golden Compass (5.3): 12/12 treasure log already banked, so sea 9's
   -- kraken rematch is reachable straight from a fresh voyage.
   ['boss-kraken'] = function()

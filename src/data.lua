@@ -88,7 +88,7 @@ M.DECKS = {
   } },
   -- `logText`: the Voyage Log line the first-ever battle on
   -- this shape appends; classic gets none since it's never a "first".
-  { id = 'gangplank', weight = 2, logText = 'BATTLE ON THE PLANK!', rows = {
+  { id = 'gangplank', weight = 2, choke = true, logText = 'BATTLE ON THE PLANK!', rows = {
     'PPccc....EE',
     'PPcccccccEE',
     'PPccc....EE',
@@ -100,9 +100,9 @@ M.DECKS = {
     'PPccccEEE',
     'PPccccEEE',
   } },
-  { id = 'twinDecks', weight = 1, logText = 'BATTLE ACROSS THE TWIN DECKS!', rows = {
+  { id = 'twinDecks', weight = 1, choke = true, logText = 'BATTLE ACROSS THE TWIN DECKS!', rows = {
     'PPcc..ccEE',
-    'PPcc..ccEE',
+    'PPcc##ccEE',
     'PPcc##ccEE',
     'PPcc..ccEE',
     'PPcc..ccEE',
@@ -111,7 +111,7 @@ M.DECKS = {
     '.EEEEE.',
     'EEEEEEE',
     'ccccccc',
-    'ccccccc',
+    'ccc^ccc',
     'ccccccc',
     'PPPPPPP',
     '.PPPPP.',
@@ -122,6 +122,20 @@ M.DECKS = {
     'PPccccccEEE',
     'PPccccccEEE',
     'PPccccccEEE',
+  } },
+  { id = 'barricade', weight = 1, choke = true, logText = 'BATTLE AT THE BARRICADE!', rows = {
+    'PPcccbccEE',
+    'PPcccbccEE',
+    'PPccc#c^EE',
+    'PPcccbccEE',
+    'PPcccbccEE',
+  } },
+  { id = 'tidepool', weight = 1, logText = 'BATTLE AT THE TIDEPOOL!', rows = {
+    'PccccccEE',
+    'Pccc.ccEE',
+    'Pccc^ccEE',
+    'Pccc.ccEE',
+    'PccccccEE',
   } },
 }
 
