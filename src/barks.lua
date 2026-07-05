@@ -1,4 +1,4 @@
--- Bark delivery (Gap 1): a floating line + a role motif at battle beats, so
+-- Bark delivery: a floating line + a role motif at battle beats, so
 -- pals read as people rather than loadouts. Depends only on data/util/audio/
 -- engine/palette -- callers (person_battle + submodules) already know a
 -- unit's screen position, so they pass it in rather than barks.lua reaching
@@ -42,7 +42,7 @@ end
 
 -- Resolve outfit -> name-override -> role table for `trigger`, then deliver
 -- it at pixel position (x, y) -- the caller's own model.px(unit.x, unit.y).
--- Outfit lines (design-gaps/06 `hatbark`) win first; landing one is the
+-- Outfit lines (for the 'hatbark' secret) win first; landing one is the
 -- secret's find condition, so it's only marked once the line actually plays
 -- (not throttled/suppressed).
 function M.say(unit, x, y, trigger)

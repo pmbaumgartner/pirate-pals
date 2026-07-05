@@ -71,7 +71,7 @@ local function drawPlayerPanel(player, x0)
   end
 end
 
--- Attack preview (Gap 4): deterministic atkBase per action, fed to
+-- Attack preview: deterministic atkBase per action, fed to
 -- model.previewDamage so the number on screen can't drift from doAttack's
 -- own math. Heal/guard/stay have nothing to preview.
 local function previewParamsFor(pl)
@@ -228,7 +228,7 @@ function M.draw()
         gfx.setColor(sc[1], sc[2], sc[3], dim and 0.4 or 0.5)
         gfx.rectangle('fill', ux + 2, uy + 13, 12, 3)
       end
-      -- Idle quirks (Gap 1): pure caller-side offsets, no frame system —
+      -- Idle quirks: pure caller-side offsets, no frame system —
       -- one small per-role tell so a lineup of pals reads as individuals.
       local qx, qScale, qAlpha = 0, 1, dim and 0.55 or 1
       if u.side == 'p' and not pb.walk then
@@ -277,7 +277,7 @@ function M.draw()
     end
   end
 
-  -- Boarding intents (Gap 4): sword/boot over each enemy during the
+  -- Boarding intents: sword/boot over each enemy during the
   -- player's turn (never during the enemy's own turn — a planning aid, not
   -- enemy-turn noise), plus a red pulse on the threatened pal that reads
   -- identically to the SLAM hazard telegraph.

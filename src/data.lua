@@ -71,7 +71,7 @@ function M.playerColorById(id)
   return M.PLAYER_COLORS[1]
 end
 
--- Boarding deck shapes (design-gaps/05): hand-authored ASCII masks, parsed by
+-- Boarding deck shapes: hand-authored ASCII masks, parsed by
 -- person_battle/model.lua's buildDeck. Legend: 'P' party spawn band, 'E'
 -- enemy spawn band, 'c' crate-eligible open deck, '#' plain open deck,
 -- '.' hole (drawn as sea, never walkable). Rows must all share one width.
@@ -86,7 +86,7 @@ M.DECKS = {
     'PccccccEE',
     'PccccccEE',
   } },
-  -- `logText` (Gap 6, item 5): the Voyage Log line the first-ever battle on
+  -- `logText`: the Voyage Log line the first-ever battle on
   -- this shape appends; classic gets none since it's never a "first".
   { id = 'gangplank', weight = 2, logText = 'BATTLE ON THE PLANK!', rows = {
     'PPccc....EE',
@@ -156,7 +156,7 @@ M.TREASURES = {
 
 M.MILESTONES = { { n = 3, id = 'bandB' }, { n = 6, id = 'cap' }, { n = 9, id = 'crown' } }
 
--- Hidden delights (design-gaps/06): small undocumented purely-positive finds,
+-- Hidden delights: small undocumented purely-positive finds,
 -- never rules -- `name` is shown once found, `hint` is the vague ALL-CAPS
 -- nudge shown as the unfound slot's caption. `src/game.lua`'s foundSecret is
 -- the only writer of meta.data.secrets; new entries here pair with a
@@ -231,7 +231,7 @@ M.PAL_NAMES = {
   'MANGO', 'WAVE WILL', 'LUCKY LU', 'TIDE', 'OTTER OZ', 'KELPY',
 }
 
--- Barks (Gap 1): 2-4 ALL-CAPS lines per role per trigger, all short enough
+-- Barks: 2-4 ALL-CAPS lines per role per trigger, all short enough
 -- for a scale-1 floater near a 16px unit. `src/barks.lua` is the only
 -- reader; every player role + `king` must carry every trigger (see
 -- data_shape_test.lua) even where a trigger never actually fires for that
@@ -312,7 +312,7 @@ M.BARKS_BY_NAME = {
   },
 }
 
--- Outfit-keyed bark overrides (design-gaps/06 `hatbark`): checked before the
+-- Outfit-keyed bark overrides (for the 'hatbark' secret): checked before the
 -- name/role tables in barks.say, so a hat can make a pal talk differently.
 -- Partial like BARKS_BY_NAME -- a missing trigger falls through to the name
 -- or role table instead of going silent.

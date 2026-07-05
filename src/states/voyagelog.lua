@@ -1,4 +1,4 @@
--- Voyage Log (Gap 2): the game remembers what happened, never what went
+-- Voyage Log: the game remembers what happened, never what went
 -- wrong -- triumphs and firsts only, appended to run.log by game.logMoment.
 -- Event-driven, unlike log.lua's stat-driven treasure checklist, so it gets
 -- its own state. Entered from the sail HUD (L) or the victory screen; exits

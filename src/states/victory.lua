@@ -22,7 +22,7 @@ local VW, VH = 320, 180
 local M = {}
 local vc = nil
 
--- Victory screen highlights (Gap 2): first recruit and first Best Mates
+-- Victory screen highlights: first recruit and first Best Mates
 -- (found oldest-first, since the gate in loot.lua/rewards.lua only logs
 -- those once) plus the most recent boss-bar break, so the King's fight
 -- gets a beat too. The voyage-won entry itself is excluded -- this screen
@@ -49,7 +49,7 @@ local function topHighlights(run)
   return picks
 end
 
--- Legends across voyages (Gap 2, pairs with New Voyage+): keep up to 2
+-- Legends across voyages (pairs with New Voyage+): keep up to 2
 -- highlight captions per pal who sailed this voyage, read newest-first out
 -- of run.log, so loot.lua can flex a returning recruit's past. Capped at
 -- the 10-pal crew cap so meta.data.legends can't grow forever across many
@@ -95,7 +95,7 @@ function M.start()
   distillLegends(run)
   meta.save()
   game.save()
-  -- Defeat gag payoff (Gap 1, item 5): one random party pal wears the King's
+  -- Defeat gag payoff: one random party pal wears the King's
   -- popped-off crown in the lineup. Draw-time only -- never touches run.party
   -- or the pal's real `out` field.
   local crownedName = util.pick(run.party).name
@@ -144,7 +144,7 @@ engine.states.victory = {
       font.drawTextO('FULL TREASURE LOG!', VW / 2, 42, CO.gold, 1, 'center')
     end
 
-    -- Voyage Log highlights (Gap 2): a few of this voyage's triumphs, read
+    -- Voyage Log highlights: a few of this voyage's triumphs, read
     -- back before the crew lineup. `L: FULL LOG` only shows once there's
     -- more to see than fits here.
     for i, e in ipairs(vc.highlights) do
@@ -175,7 +175,7 @@ engine.states.victory = {
     for i, p in ipairs(lineup) do
       local x = startX + (i - 1) * spacing
       local ph = vc.t * 2 + i
-      -- Per-role pose (Gap 1): a shared bob read as one crowd; a distinct
+      -- Per-role pose: a shared bob read as one crowd; a distinct
       -- wobble per role reads as individuals. Strongman also gets a small
       -- scale pulse (a flex) layered on top of the shared bob.
       local bob = util.round(math.sin(ph) * 2)

@@ -1,5 +1,5 @@
 -- Treasure log: the 12-slot collection checklist plus milestone rewards, and
--- (design-gaps/06) a sibling SECRETS tab reusing the same slot-grid idiom.
+-- a sibling SECRETS tab reusing the same slot-grid idiom.
 local palette = require 'src.palette'
 local font = require 'src.font'
 local sprites = require 'src.sprites'

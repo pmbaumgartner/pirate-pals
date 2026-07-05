@@ -17,7 +17,7 @@ M.UPGRADES = {
   steady = { name = 'STEADY HANDS', desc = 'THE WHEEL FIGHTS LESS!', costs = { 50, 120 }, max = 2 },
 }
 
--- STEADY HANDS (design-gaps/04): a bought ship part, not a difficulty mode
+-- STEADY HANDS: a bought ship part, not a difficulty mode
 -- — widens timing.cfg's good/perfect windows and, at tier 2, slows the
 -- sweep. Fed straight into every timing.start/startCoop cfg() call.
 local STEADY_MULT = {

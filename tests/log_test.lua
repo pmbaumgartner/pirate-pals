@@ -1,4 +1,4 @@
--- Plain-Lua unit tests for game.logMoment (Gap 2, Voyage Log): entry shape,
+-- Plain-Lua unit tests for game.logMoment (Voyage Log): entry shape,
 -- sea stamping, and the 40-entry cap keeping "first" milestones over
 -- routine repeats. game.lua now pulls in engine/audio (design-gaps/06
 -- foundSecret) which only touch love.* inside function bodies, so a stub

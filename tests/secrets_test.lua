@@ -1,4 +1,4 @@
--- Plain-Lua unit tests for hidden delights (design-gaps/06): data-shape,
+-- Plain-Lua unit tests for hidden delights: data-shape,
 -- game.foundSecret idempotency, and the meta round-trip of the secrets set.
 -- game.lua's foundSecret pulls in engine/audio, which only touch love.*
 -- inside function bodies, so a stub table is enough (same approach as

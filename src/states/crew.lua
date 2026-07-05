@@ -77,7 +77,7 @@ engine.states.crew = {
 
   update = function(dt)
     local run = game.run
-    -- Hidden delight (design-gaps/06 `napbuddies`): two tuckered-out pals
+    -- Hidden delight (for the 'napbuddies' secret): two tuckered-out pals
     -- listed back-to-back snore in sync. Purely cosmetic, checked every
     -- frame the crew screen is open; foundSecret no-ops once it's found.
     for i = 1, #run.crew - 1 do

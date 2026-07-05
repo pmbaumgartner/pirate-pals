@@ -77,7 +77,7 @@ engine.states.loot = {
     if part.type == 'recruit' then
       if input.jp('a') then
         local run = game.run
-        -- Voyage Log (Gap 2): the very first recruit of the voyage, caught
+        -- Voyage Log: the very first recruit of the voyage, caught
         -- by checking crew size against the starting roster (2 solo, 4 in
         -- TWO CAPTAINS) before this pal is added.
         local wasFirst = #run.crew == (run.mode == 'captains' and 4 or 2)
@@ -194,7 +194,7 @@ engine.states.loot = {
       font.drawText(part.pirate.name, VW / 2 + 16, by + 10, CO.gold, 1, 'center')
       font.drawText(data.ROLES[part.pirate.role].label .. ' LV' .. part.pirate.lvl, VW / 2 + 16, by + 20, CO.gray, 1, 'center')
       font.drawText('WANTS TO JOIN!', VW / 2 + 16, by + 32, CO.white, 1, 'center')
-      -- Legends across voyages (Gap 2, 5.3): a returning pal who earned
+      -- Legends across voyages: a returning pal who earned
       -- highlights last voyage flexes one of them here instead of the
       -- owner tag, which only applies once the party's still got room.
       local legend = meta.data.legends[part.pirate.name]

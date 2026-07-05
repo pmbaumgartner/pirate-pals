@@ -1,5 +1,5 @@
--- Plain-Lua unit tests for the boarding-battle intent/preview pipeline
--- (Gap 4): previewDamage must agree with damage()'s own modifier chain,
+-- Plain-Lua unit tests for the boarding-battle intent/preview pipeline:
+-- previewDamage must agree with damage()'s own modifier chain,
 -- and nextFoe must follow a planned intent while surviving a KO'd target.
 -- Requiring person_battle/model.lua and ai.lua pulls in engine/audio/game,
 -- which only touch love.* inside functions we never call here, so a stub
@@ -128,7 +128,7 @@ end)
 ok(ranOk, 'foe turn runs without error after its intended target is koed: ' .. tostring(err))
 ok(p1.hp == 20, 'the dead intended target takes no damage')
 
--- Deck mask (Gap 6): thief escape fires at the mask's own east edge, not a
+-- Deck mask: thief escape fires at the mask's own east edge, not a
 -- hardcoded column — lshape's top rows are narrower than the full width.
 local game = require 'src.game'
 local lshape = model.buildDeck('lshape')
@@ -159,7 +159,7 @@ ok(ranOk2, 'thief turn runs without error at the mask edge: ' .. tostring(err2))
 ok(thief.escaped, 'thief should escape once at the mask east edge, regardless of column')
 ok(game.run.gold == 5, 'escaping thief should take its held gold')
 
--- Shove-into-hole (Gap 6): sliding toward a hole/mask edge stops there,
+-- Shove-into-hole: sliding toward a hole/mask edge stops there,
 -- never placing the target off-mask.
 local gangplank = model.buildDeck('gangplank')
 ok(not gangplank.deck[grid.gk(5, 0)], 'expected a hole at (5,0) in the gangplank template')

@@ -63,7 +63,7 @@ function M.isBonded(a, b)
   return M.run.bondsMade[M.bondKey(a, b)] == true
 end
 
--- Voyage Log (Gap 2): notable moments the game remembers, never anything
+-- Voyage Log: notable moments the game remembers, never anything
 -- that went wrong. `icon` is a sprite key, `pals` a list of pal names
 -- (never crew references, so identity/save-shape stays plain data). Capped
 -- at 40 so the save can't bloat; once full, the oldest non-`first` entry is
@@ -81,7 +81,7 @@ function M.logMoment(icon, text, pals, first)
   end
 end
 
--- Hidden delights (design-gaps/06): the one writer of meta.data.secrets.
+-- Hidden delights: the one writer of meta.data.secrets.
 -- No-op on a repeat find -- callers can call this every time their trigger
 -- condition is true without worrying about re-showing the banner.
 function M.foundSecret(id)
@@ -388,7 +388,7 @@ function M.genSea(lv, biome)
       M.run.sea = {
         lv = lv, t = t, enemies = enemies, exit = exit, port = port, cleared = false, boss = boss,
         biome = biome, slick = buildSlick(t, spawn, biome), rocks = {}, rockT = 2.5, shipHurt = 0,
-        -- Hidden delight (design-gaps/06 `luckycoin`): every chest this sea
+        -- Hidden delight (for the 'luckycoin' secret): every chest this sea
         -- opened without a battle in between. chestOpened/chestBroken reset
         -- fresh with every new sea, same as the rest of run.sea.
         chestTotal = #chests, chestOpened = 0, chestBroken = false,

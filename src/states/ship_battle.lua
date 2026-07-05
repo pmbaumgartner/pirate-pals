@@ -518,7 +518,7 @@ local function doShipAction(i, id)
     local dmg = sh.range == 'NEAR' and (9 + capLvlFor(i) + util.irand(0, 3)) or (6 + capLvlFor(i) + util.irand(0, 2))
     if res == 'perfect' then
       dmg = math.floor(dmg * 1.5)
-      -- Hidden delight (design-gaps/06 `cannonball`): three perfect FIRE
+      -- Hidden delight (for the 'cannonball' secret): three perfect FIRE
       -- shots in one battle earns a rainbow trail for the rest of it.
       sb.perfectFireCount = sb.perfectFireCount + 1
       if sb.perfectFireCount >= 3 and not sb.cannonballFx then

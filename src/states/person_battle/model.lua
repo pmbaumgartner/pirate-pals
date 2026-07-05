@@ -90,7 +90,7 @@ function M.buildDeck(tplId)
   }
 end
 
--- Weighted shape draw (design-gaps/05): classic alone on seas 1-2, then the
+-- Weighted shape draw: classic alone on seas 1-2, then the
 -- full weighted pool (classic included) so it stays common but not forced.
 function M.pickDeckId(lv)
   if lv < 3 then return 'classic' end
@@ -109,7 +109,7 @@ function M.deckOrigin(w, h)
   return ox, oy
 end
 
--- Random crate scatter (Gap 6): only ever lands on 'c'-marked tiles, never
+-- Random crate scatter: only ever lands on 'c'-marked tiles, never
 -- on a spawn band or plain '#' deck.
 function M.scatterCrates(deckInfo)
   local crates = {}
@@ -142,7 +142,7 @@ function M.moveCursor(cx, cy, dx, dy)
   return cx, cy
 end
 
--- Shared shove-slide resolution (Gap 6): how far a shoved target travels
+-- Shared shove-slide resolution: how far a shoved target travels
 -- from its own tile before the deck edge, a hole, a crate, or another unit
 -- stops it. Read-only — the path includes every intermediate tile so both
 -- the real move (person_battle.lua) and the preview ghost (draw.lua) render
@@ -262,7 +262,7 @@ function M.walk(u, path, after)
     return
   end
   local pb = S.pb
-  -- Hidden delight (design-gaps/06 `tightrope`): any pal's path crossing the
+  -- Hidden delight (for the 'tightrope' secret): any pal's path crossing the
   -- gangplank's narrow waist trips the "somebody wobbled" flag pb.checkEnd
   -- reads at the victory beat.
   if u.side == 'p' and pb.waistCols then
@@ -283,7 +283,7 @@ function M.ko(u)
   SFX.poof()
   local ux, uy = M.px(u.x, u.y)
   barks.say(u, ux, uy, 'ko')
-  -- Defeat gag (Gap 1, item 5): the crown visibly pops off the King's KO poof.
+  -- Defeat gag: the crown visibly pops off the King's KO poof.
   if u.role == 'king' then
     engine.addParts(ux + 8, uy - 2, 10, CO.gold, 55, 20)
   end
@@ -331,7 +331,7 @@ function M.bondBonus(att)
   return 0
 end
 
--- Shared modifier chain (Gap 4): crab shell / guard, then cover, each
+-- Shared modifier chain: crab shell / guard, then cover, each
 -- halving. `damage()` and `previewDamage()` both run through this so the
 -- preview can never drift from what actually lands.
 -- Crab shell (4.3): frontal hits are halved like a permanent guard; only
@@ -366,7 +366,7 @@ end
 function M.damage(att, def, base, res, opts)
   opts = opts or {}
   local dx, dy = M.px(def.x, def.y)
-  -- A miss still lands as a rare, cheap chip hit (design-gaps/04): a
+  -- A miss still lands as a rare, cheap chip hit: a
   -- whiffed turn used to do zero, the most punishing outcome in the game.
   if res == 'miss' then
     local dmg = math.max(1, math.ceil(base / 3))
@@ -466,7 +466,7 @@ function M.checkEnd()
       end, 1.4)
       return true
     end
-    -- Hidden delight (design-gaps/06 `tightrope`): the gangplank deck, won
+    -- Hidden delight (for the 'tightrope' secret): the gangplank deck, won
     -- with no pal ever setting foot on its narrow waist.
     if pb.deckId == 'gangplank' and pb.waistCols and not pb.wobbled then
       game.foundSecret('tightrope')

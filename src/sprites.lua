@@ -69,7 +69,7 @@ P_KING[2] = "....Y.Y.Y.Y....."
 P_KING[3] = "....YYYYYYYY...."
 P_KING[4] = "....KHHHHHHK...."
 
--- Ruffled King (Gap 1, item 5): crown tilts at 2 bars, then is gone
+-- Ruffled King: crown tilts at 2 bars, then is gone
 -- entirely (frazzled hair) at 1 bar. Swapped in by u.bars in draw.lua.
 local P_KING_2BAR = copyRows(P_WIDE)
 P_KING_2BAR[1] = "................"
@@ -258,7 +258,7 @@ local ICON_MOVE = {
   "............",
 }
 
--- Boarding intent icon (Gap 4): crossed hilt, mirrors icon_fire/fix/move's
+-- Boarding intent icon: crossed hilt, mirrors icon_fire/fix/move's
 -- 12x12 footprint so it drops into the same draw call.
 local ICON_SWORD = {
   "............",
@@ -462,7 +462,7 @@ local BIO_VOLCANO = {
   "............",
   "............" }
 
--- Secrets log checkmark (design-gaps/06): drawn over a found slot in
+-- Secrets log checkmark: drawn over a found slot in
 -- src/states/log.lua's SECRETS tab.
 local CHECK = {
   "................",
@@ -657,7 +657,7 @@ local OUTFIT_DRAW = {
   parrot = { side = 'parrot' },
 }
 
--- Ruffled King (Gap 1): which body art to draw for the Pirate King at his
+-- Ruffled King: which body art to draw for the Pirate King at his
 -- current bar count -- crown tilts at 2, is gone (frazzled) at 1 or fewer.
 function M.kingSprite(bars)
   if bars and bars <= 1 then return 'pir_king1' end

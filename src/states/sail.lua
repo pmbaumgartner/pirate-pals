@@ -74,7 +74,7 @@ engine.states.sail = {
     if input.jp('vlog') then SFX.sel(); engine.setState('voyagelog', 'sail'); return end
 
     -- A has no other job at sea, so P1 pressing it is always the dig-anywhere
-    -- verb (design-gaps/06 `seashell`) rather than something to disambiguate.
+    -- verb (for the 'seashell' secret) rather than something to disambiguate.
     if input.p1.jp('a') and not sh.anim and not sh.route then rules.tryDig() end
 
     -- Taps plan a route from the ship's logical cell, even mid-hop. Touch

@@ -110,7 +110,7 @@ settle()
 tap('z')
 waitUntil(function() return engine.cur == 'sail' end, 5)
 
--- Voyage Log (Gap 2): accepting a recruit logs a one-time "first recruit"
+-- Voyage Log: accepting a recruit logs a one-time "first recruit"
 -- moment, gated on the starting crew size (still 2 here -- CAPPY/FIN only).
 local logBefore = #game.run.log
 loot.start({ { type = 'recruit', pirate = game.makePirate('deckhand', 'SPARKY', 1) } }, 'TEST RECRUIT')
@@ -169,7 +169,7 @@ engine.setState('log')
 wait(1.0)
 shot('log')
 
--- Voyage Log screen (Gap 2): opened via the real L hotkey from sail, shows
+-- Voyage Log screen: opened via the real L hotkey from sail, shows
 -- the moments logged above, and B returns to sail.
 engine.setState('sail')
 wait(0.2)
@@ -279,7 +279,7 @@ expect(engine.cur == 'victory', 'victory.start did not switch state')
 wait(0.3)
 shot('victory')
 
--- Voyage Log (Gap 2): victory.start() logs its own PIRATE LEGENDS moment
+-- Voyage Log: victory.start() logs its own PIRATE LEGENDS moment
 -- and distills a Legend highlight for any pal (SPARKY, recruited above)
 -- named in this voyage's log.
 local hasFirstRecruitLog, hasVictoryLog = false, false
@@ -358,7 +358,7 @@ expect(game.run.ship2.x ~= sx0 or game.run.ship2.y ~= sy0, 'ship2 did not move o
 
 -- Either ship bumping a foe pulls the fleet into one shared battle. Park
 -- next to the foe and tap-step onto it — a long scripted route can cross a
--- port/chest/event tile and hijack the state (see KNOWN_ISSUES.md).
+-- port/chest/event tile and hijack the state.
 local foe = game.run.sea.enemies[1]
 local near = nil
 for _, nb in ipairs(grid.hexNeighbors(foe.x, foe.y)) do
@@ -389,7 +389,7 @@ game.run.sea.enemies = {}
 -- C3: one full fleet round — both captains pick MOVE from their own menus,
 -- actions resolve in confirm order, the foe takes its turn, and control
 -- comes back to select. (Runs deterministically now that scripted runs use
--- a fixed dt — see KNOWN_ISSUES.md.)
+-- a fixed dt.)
 local sbT = shipBattle.sb
 local function fleetSettled()
   return not engine.trans.on and sbT.turn == 'select' and not sbT.anim
@@ -442,8 +442,8 @@ waitUntil(function() return sbT.over or fleetSettled() end, 15)
 wait(0.5)
 
 -- C4: dual-cursor boarding — per-player interaction state, each cursor
--- locked to its owner's pals. Fixed waits + direct state pokes only; see
--- KNOWN_ISSUES.md before adding waitUntil-on-timing here.
+-- locked to its owner's pals. Fixed waits + direct state pokes only; avoid
+-- adding waitUntil-on-timing here.
 personBattle.start(foe)
 expect(engine.cur == 'personBattle', 'captains boarding did not start')
 local pbT = personBattle.pb

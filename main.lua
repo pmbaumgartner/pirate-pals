@@ -190,7 +190,7 @@ function love.update(dt)
   -- Scripted runs (--script/--smoke) use a fixed dt so a given --seed
   -- replays bit-identically: with real frame times, every timer threshold
   -- crosses at host-load-dependent tick boundaries, which let events
-  -- reorder between runs of the same seed (see KNOWN_ISSUES.md).
+  -- reorder between runs of the same seed.
   if flags.script then dt = 1 / 60 else dt = math.min(0.05, dt) end
   local n = speedN
   if flags.dev and love.keyboard.isDown('tab') then n = n * 4 end

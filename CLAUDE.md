@@ -31,6 +31,8 @@ Run commands from the repo root.
 - Timed visual juice is hand-rolled: advance a `.t = .t + dt` field per-effect in `update`, shaping it with `util.ease`/`util.lerp`; this fast-forwards naturally under `--speed` since it rides game `dt`.
 - Never hardcode key names ('Z', 'N', ...) in UI strings; build prompts with `input.promptKey(ctx, action)` so they track the real per-player bindings (and pad button names).
 - Scripted runs enforce a visual invariant: no text may draw outside the 320x180 canvas (`src/dev/bounds.lua` wraps `font.drawText`). Clamp intentional transients in game code; there is no allowlist.
+- Do not reference stale, archived, or temporary planning documents (e.g., files in `.plans/` or `.plans/.archive/`) in comments. Comments should describe code functionality and immediate context rather than transient project history.
+
 
 
 ## General

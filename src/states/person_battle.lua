@@ -334,7 +334,7 @@ local function newPb(units, crates, lv, foe, isBoss, deckInfo)
     flags = {}, over = false, defeated = {},
     idleT = 0, p2Away = false, p2Auto = false,
   }
-  -- Hidden delight (design-gaps/06 `tightrope`): on the gangplank deck, mark
+  -- Hidden delight (for the 'tightrope' secret): on the gangplank deck, mark
   -- which columns are only walkable along the middle row (the narrow bridge
   -- over the gap) so model.walk can flag a crossing.
   if S.pb.deckId == 'gangplank' then
@@ -400,7 +400,7 @@ function M.start(foe, compOverride, deckOverride)
   end
   for i, u in ipairs(units) do u.id = i end
   local crates = model.scatterCrates(deckInfo)
-  -- Story hook (design-gaps/05, item 5): the first-ever battle on a
+  -- Story hook: the first-ever battle on a
   -- non-classic shape gets its own Voyage Log line.
   if deckInfo.logText and not game.run.seenDecks[deckInfo.id] then
     game.run.seenDecks[deckInfo.id] = true
@@ -418,7 +418,7 @@ end
 function M.startBoss(foe)
   local lv = foe.lv
   local units = {}
-  -- The boss deck stays a fixed shape (design-gaps/05 non-goal): SLAM tile
+  -- The boss deck stays a fixed shape: SLAM tile
   -- choreography and minion placement keep their tuned classic-box feel.
   local deckInfo = model.buildDeck('classic')
   local partyCap = game.partyCap()

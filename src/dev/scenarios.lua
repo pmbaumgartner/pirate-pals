@@ -252,7 +252,7 @@ M.scenarios = {
     engine.setState('sail')
   end,
 
-  -- Battle map variety (design-gaps/05): one warp per deck shape, forced via
+  -- Battle map variety: one warp per deck shape, forced via
   -- the deckOverride arg, for a legibility pass with --shots.
   ['boarding-classic'] = function()
     game.newGame()

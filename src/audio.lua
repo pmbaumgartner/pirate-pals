@@ -95,7 +95,7 @@ end
 
 local tone, noiseBurst = M.tone, M.noiseBurst
 
--- Role sound motifs (Gap 1): a 2-3 note signature per role, played by
+-- Role sound motifs: a 2-3 note signature per role, played by
 -- src/barks.lua alongside a bark line. Distinct register per role; each
 -- totals well under 0.25s. Tones are cache-keyed like sfx, so repeats are free.
 local MOTIFS = {

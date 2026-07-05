@@ -15,7 +15,7 @@ local VW = 320
 
 local M = { on = false, coopMode = false, player = nil }
 
--- Tuning (design-gaps/04): the good window is a constant floor an adult
+-- Tuning: the good window is a constant floor an adult
 -- always reaches, not a scaling target — sweep speed carries the (mild)
 -- difficulty curve and only 'perfect' tightens with sea level. Do not
 -- reintroduce a per-level good-window shrink; that's the exact thing this
@@ -75,7 +75,7 @@ end
 
 -- Returns true while the minigame owns input for this frame; pressed is
 -- the confirm edge (the call site passes input.jp('a')).
--- Anti-mash tooth (design-gaps/04): pressing while the marker is way
+-- Anti-mash tooth: pressing while the marker is way
 -- outside the good window doesn't resolve, it greys the bar briefly and
 -- lets the sweep continue — mashing delays the result instead of
 -- harvesting random 'good's. Capped so a frustrated kid still resolves.

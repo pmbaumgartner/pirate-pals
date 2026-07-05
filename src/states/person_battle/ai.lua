@@ -330,7 +330,7 @@ local function pickTarget(foe)
   return best, bestD
 end
 
--- Honest boarding intents (Gap 4): tells the player next turn's move/attack
+-- Honest boarding intents: tells the player next turn's move/attack
 -- before they commit, mirroring ship battle's decideIntent. The King's SLAM
 -- keeps its own tile telegraph (doSlam) instead of an icon here, and the
 -- thief never attacks, so both are left without an intent.

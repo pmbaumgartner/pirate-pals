@@ -31,7 +31,7 @@ local hexCenter, inSea = sailMap.hexCenter, sailMap.inSea
 function M.startEncounter(foe, shipKey)
   local run = game.run
   run.enc = { foe = foe }
-  -- Hidden delight (design-gaps/06 `luckycoin`): any battle breaks an
+  -- Hidden delight (for the 'luckycoin' secret): any battle breaks an
   -- in-progress unbroken chest streak for this sea.
   if run.sea then run.sea.chestBroken = true end
   SFX.bump()
@@ -58,7 +58,7 @@ function M.startEncounter(foe, shipKey)
   end)
 end
 
--- Hidden delight (design-gaps/06 `kingsniff`): the King has opinions about a
+-- Hidden delight (for the 'kingsniff' secret): the King has opinions about a
 -- fully-matching bandana crew on his own sea. Purely a bark, no rule change.
 function M.checkKingSniff()
   local run = game.run
@@ -72,7 +72,7 @@ function M.checkKingSniff()
   end
 end
 
--- Hidden delight (design-gaps/06 `seashell`): the only dig-anywhere verb --
+-- Hidden delight (for the 'seashell' secret): the only dig-anywhere verb --
 -- P1 presses A next to any island hex for a small chance at a cosmetic find.
 -- A miss just keeps him digging, no penalty, no rule ever touched.
 function M.tryDig()
@@ -114,7 +114,7 @@ local function openChest(x, y)
     partsList[#partsList + 1] = treasurePart
     for _, u in ipairs(unlocks) do partsList[#partsList + 1] = u end
   end
-  -- Hidden delight (design-gaps/06 `luckycoin`): clearing every chest this
+  -- Hidden delight (for the 'luckycoin' secret): clearing every chest this
   -- sea holds with no battle in between sprays extra confetti and a trivial
   -- bonus coin on the last one -- never a rule, just a nice streak to spot.
   sea.chestOpened = (sea.chestOpened or 0) + 1
@@ -241,7 +241,7 @@ function M.enemyVisible(e)
   return false
 end
 
--- Hidden delight (design-gaps/06 `echobark`): both players hitting their own
+-- Hidden delight (for the 'echobark' secret): both players hitting their own
 -- B ("bark") within 0.3s of each other, purely cosmetic -- no other job for
 -- P1's B at sail, and P2's B (squawk) still fires independently alongside it.
 local echoP1T, echoP2T = nil, nil
@@ -266,7 +266,7 @@ function M.checkEchoBark(sh)
   end
 end
 
--- Hidden delight (design-gaps/06 `bootsong`): nobody touches either pad for
+-- Hidden delight (for the 'bootsong' secret): nobody touches either pad for
 -- a full minute at sail and the crew hums to fill the quiet.
 local BOOTSONG_IDLE = 60
 local bootIdleT = 0
@@ -300,7 +300,7 @@ function M.updateBootsong(dt, run, sh)
   end
 end
 
--- Hidden delight (design-gaps/06 `fishfriend`): holding the same icy hex for
+-- Hidden delight (for the 'fishfriend' secret): holding the same icy hex for
 -- a few seconds straight earns a little fish visitor for the rest of the sea.
 function M.updateFishFriend(dt, run, sh)
   local sea = run.sea

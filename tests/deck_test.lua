@@ -1,4 +1,4 @@
--- Guardrails for boarding deck shapes (design-gaps/05): every src.data.DECKS
+-- Guardrails for boarding deck shapes: every src.data.DECKS
 -- template must parse into one connected region, keep enough open tiles
 -- after max crate scatter, give both sides a non-empty spawn band spaced
 -- apart, and fit the fixed 320x180 canvas.
@@ -61,7 +61,7 @@ for _, tpl in ipairs(data.DECKS) do
     tpl.id .. ': deck does not fit the 320x180 canvas')
 end
 
--- Weighted selection (Gap 6): classic alone on seas 1-2, every template must
+-- Weighted selection: classic alone on seas 1-2, every template must
 -- be reachable once the full pool opens up at sea 3+.
 for _, tpl in ipairs(data.DECKS) do
   ok(model.pickDeckId(1) == 'classic', 'sea 1 must always draw classic')

@@ -1,5 +1,5 @@
 -- Plain-Lua unit tests for perk data + game.statsOf's perk math (3.3).
--- game.lua now pulls in engine/audio (design-gaps/06 foundSecret) which only
+-- game.lua now pulls in engine/audio (for foundSecret) which only
 -- touch love.* inside function bodies, so a stub table is enough to load
 -- them (same approach as person_battle_test.lua).
 package.path = './?.lua;' .. package.path

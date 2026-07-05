@@ -31,7 +31,7 @@ ok(meta.hasFreeDodge() == true, 'any sails tier grants the free dodge')
 meta.data.upgrades.cook = 2
 ok(meta.cookTier() == 2, 'cookTier reflects the current tier')
 
--- STEADY HANDS (design-gaps/04): a bought ship part, widening timing
+-- STEADY HANDS: a bought ship part, widening timing
 -- windows and, at tier 2 only, slowing the sweep.
 meta.data.upgrades.steady = 0
 ok(meta.steadyMult().win == 1 and meta.steadyMult().sweep == 1, 'no steady tier is a no-op')

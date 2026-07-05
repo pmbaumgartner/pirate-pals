@@ -38,7 +38,7 @@ ok(timing.classify(0.66, 0.3, 0.1) == 'miss', 'outside good is miss')
 ok(timing.classify(0.0, 0.3, 0.1) == 'miss', 'bar end is miss')
 
 -- cfg: sweeps slow and floored; the good window is a constant floor across
--- all sea levels (design-gaps/04) — only 'perfect' tightens with level, and
+-- all sea levels — only 'perfect' tightens with level, and
 -- only a STEADY HANDS widen multiplier changes windows.
 ok(timing.cfg(0).dur == 2.0, 'base sweep 2.0s')
 ok(timing.cfg(99).dur == 1.5, 'sweep floor 1.5s')
