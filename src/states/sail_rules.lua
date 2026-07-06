@@ -135,6 +135,16 @@ local function foundBottle(x, y)
   game.setTile(x, y, game.T_WATER)
   local run = game.run
   local last = (run.voyage and run.voyage.length or 8) - 1
+  if run.sea.lv == last and not run.gossipShown then
+    run.gossipShown = true
+    local parts = { { type = 'gossip' } }
+    if not run.blueprints['fire'] then
+      parts[#parts + 1] = { type = 'blueprint_single', id = 'fire' }
+      run.blueprints['fire'] = true
+    end
+    loot.start(parts, 'GOSSIP!', 'sail')
+    return
+  end
   local target = math.min(last, run.sea.lv + util.irand(1, 2))
   run.quest = { sea = target }
   SFX.fanfare()
@@ -393,7 +403,22 @@ local function handleArrival(sh, shipKey)
   local tl = game.tileAt(sh.x, sh.y)
   if tl ~= game.T_WATER then sh.route = nil end
   if tl == game.T_CHEST then openChest(sh.x, sh.y); return true end
-  if tl == game.T_PORT then engine.setState('dock'); return true end
+  if tl == game.T_PORT then
+    local lv = game.run.sea.lv
+    local last = (game.run.voyage and game.run.voyage.length or 8) - 1
+    if lv == last and not game.run.gossipShown then
+      game.run.gossipShown = true
+      local parts = { { type = 'gossip' } }
+      if not game.run.blueprints['fire'] then
+        parts[#parts + 1] = { type = 'blueprint_single', id = 'fire' }
+        game.run.blueprints['fire'] = true
+      end
+      loot.start(parts, 'GOSSIP!', 'dock')
+      return true
+    end
+    engine.setState('dock')
+    return true
+  end
   if tl == game.T_EXIT then return tryEnterExit(sh, shipKey) end
   if tl == game.T_BOTTLE then foundBottle(sh.x, sh.y); return true end
   if tl == game.T_TRADER then meetTrader(sh.x, sh.y); return true end

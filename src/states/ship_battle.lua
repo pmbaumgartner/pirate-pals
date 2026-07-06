@@ -71,18 +71,28 @@ function M.start(foe)
   local fleet = game.run.mode == 'captains'
   local foeClass = foe.class or (isBoss and (foe.kraken and 'kraken' or 'king') or 'brig')
   local foeGuns, foeSails, foeArmor, foeWeak, foeMaxHp
+  local foeRepairs, bigshotKegs, volleyKegs
+  local immuneAblaze = false
   if isBoss then
-    foeMaxHp = foe.kraken and 190 or 96
     if foe.kraken then
+      foeMaxHp = data.KING.kraken.hull
       foeGuns = 3
       foeSails = 1
       foeArmor = 0
-      foeWeak = 'chain'
+      foeWeak = data.KING.kraken.weak
+      foeRepairs = 2
+      bigshotKegs = 0
+      volleyKegs = 0
+      immuneAblaze = data.KING.kraken.immuneAblaze
     else
+      foeMaxHp = data.KING.hull
       foeGuns = 3
       foeSails = 1
-      foeArmor = 1
-      foeWeak = 'fire'
+      foeArmor = data.KING.armor
+      foeWeak = data.KING.weak
+      foeRepairs = data.KING.repairs
+      bigshotKegs = data.KING.bigshotKegs
+      volleyKegs = data.KING.volleyKegs
     end
   else
     local cStats = shipRules.getEnemyClassStats(foeClass, lv)
@@ -91,23 +101,19 @@ function M.start(foe)
     foeSails = cStats.sails
     foeArmor = cStats.armor
     foeWeak = cStats.weak
+    foeRepairs = 2
+    bigshotKegs = (foeClass == 'manowar') and 3 or 0
+    volleyKegs = 0
   end
   local foeHp = foeMaxHp
-  local foeRepairs = isBoss and (foe.kraken and 2 or 1) or 2
-  local bigshotKegs = 0
-  local volleyKegs = 0
-  if isBoss then
-    bigshotKegs = fleet and 4 or 3
-    volleyKegs = 2
-  elseif foeClass == 'manowar' then
-    bigshotKegs = 3
-  end
-  -- Fleet battles land ~2x player actions per round (two captains firing
-  -- instead of one); scale the foe up here, in the one place, rather than
-  -- scattering an extra multiplier through decideIntent/impact.
   if fleet then
-    foeHp = math.floor(foeHp * 1.6)
-    foeRepairs = isBoss and (foe.kraken and 3 or 2) or 3
+    foeMaxHp = math.floor(foeMaxHp * 1.5)
+    foeHp = foeMaxHp
+    if isBoss and not foe.kraken then
+      bigshotKegs = bigshotKegs + 1
+    else
+      foeRepairs = 3
+    end
   end
   -- Volcano dents (4.1): rock hits on the sail map lower the starting bar
   -- for the next battle only (capped at 9, so never close to a sink), then
@@ -178,6 +184,8 @@ function M.start(foe)
       class = foeClass,
       gunsStage = 0,
       sailsStage = startSailsStage,
+      ablaze = nil,
+      immuneAblaze = immuneAblaze,
     },
     ships = ships,
     turn = fleet and 'select' or 'you',
@@ -187,6 +195,7 @@ function M.start(foe)
     broadsideUsed = false,
     confirmSeq = 0, queue = {}, idleT = 0,
     perfectFireCount = 0, cannonballFx = false,
+    announcedPhase = 1,
   }
   M.sb = sb
   decideIntent()
@@ -311,9 +320,14 @@ impact = function(who, dmg, opts)
         sb.msg = "YOU SWEPT HER DECK!"
         engine.addFloat(ex + 16, ey - 24, 'GUNS DOWN!', CO.orange, 1.5)
       elseif opts.shotId == 'fire' then
-        tgt.ablaze = 3
-        sb.msg = "SHE IS ABLAZE!"
-        engine.addFloat(ex + 16, ey - 24, 'ABLAZE!', CO.orange, 1.5)
+        if tgt.immuneAblaze then
+          sb.msg = "THE FIRE IS IMMEDIATELY EXTINGUISHED!"
+          engine.addFloat(ex + 16, ey - 24, 'IMMUNE!', CO.gray, 1.5)
+        else
+          tgt.ablaze = 3
+          sb.msg = "SHE IS ABLAZE!"
+          engine.addFloat(ex + 16, ey - 24, 'ABLAZE!', CO.orange, 1.5)
+        end
       end
     end
   else
@@ -371,11 +385,20 @@ shipDown = function(i)
       end
     end
 
-    if gotFlotsam then
-      sb.msg = "FISHED WRECKAGE FROM YOUR WAKE! (+1 TIMBER)"
+    if sb.isBoss then
+      sb.msg = "HER HULL SHRUGGED OFF OUR SHOTS - WE NEED HEAVIER GUNS OR HOTTER SHOT."
       engine.showBanner("SLIPPED AWAY!", CO.orange, 1.3)
+      if gotFlotsam then
+        local px, py = shipXY(1)
+        engine.addFloat(px + 16, py - 18, '+1 TIMBER', CO.gold, 1.5)
+      end
     else
-      sb.msg = 'YOUR SHIP SLIPS AWAY...'
+      if gotFlotsam then
+        sb.msg = "FISHED WRECKAGE FROM YOUR WAKE! (+1 TIMBER)"
+        engine.showBanner("SLIPPED AWAY!", CO.orange, 1.3)
+      else
+        sb.msg = 'YOUR SHIP SLIPS AWAY...'
+      end
     end
 
     beginCo(function()
@@ -410,11 +433,20 @@ shipDown = function(i)
       end
     end
 
-    if gotFlotsam then
-      sb.msg = "FISHED WRECKAGE FROM YOUR WAKE! (+1 TIMBER)"
+    if sb.isBoss then
+      sb.msg = "HER HULL SHRUGGED OFF OUR SHOTS - WE NEED HEAVIER GUNS OR HOTTER SHOT."
       engine.showBanner("SLIPPED AWAY!", CO.orange, 1.3)
+      if gotFlotsam then
+        local px, py = shipXY(1)
+        engine.addFloat(px + 16, py - 18, '+1 TIMBER', CO.gold, 1.5)
+      end
     else
-      sb.msg = 'BOTH SHIPS SLIP AWAY...'
+      if gotFlotsam then
+        sb.msg = "FISHED WRECKAGE FROM YOUR WAKE! (+1 TIMBER)"
+        engine.showBanner("SLIPPED AWAY!", CO.orange, 1.3)
+      else
+        sb.msg = 'BOTH SHIPS SLIP AWAY...'
+      end
     end
 
     beginCo(function()
@@ -455,16 +487,54 @@ decideIntent = function()
   end
 
   if sb.isBoss then
+    if f.kraken then
+      f.intent = 'fire'
+      return
+    end
+
+    local hpRatio = f.hp / f.max
+    local phase = 1
+    if hpRatio <= 0.33 then
+      phase = 3
+    elseif hpRatio <= 0.67 then
+      phase = 2
+    end
+
+    if phase > (sb.announcedPhase or 1) then
+      sb.announcedPhase = phase
+      if phase == 2 then
+        sb.msg = "SHE RUNS OUT HER LOWER GUNS!"
+        engine.showBanner("SHE RUNS OUT HER LOWER GUNS!", CO.red, 1.5)
+      elseif phase == 3 then
+        sb.msg = "THE KING BELLOWS - RAMMING SPEED!"
+        engine.showBanner("THE KING BELLOWS - RAMMING SPEED!", CO.red, 1.5)
+      end
+    end
+
     if f.hp < f.max * 0.3 and f.repairs > 0 and util.chance(0.6) then
       f.intent = 'fix'
-    -- New Voyage+ tier 2 wrinkle: the King learns VOLLEY, a telegraphed
-    -- back-to-back double shot (still just MOVE-dodgeable, like FIRE).
-    elseif (meta.data.tier or 0) >= 2 and f.volleyKegs > 0 and util.chance(0.25) then
-      f.intent = 'volley'
-    elseif f.bigshotKegs > 0 and util.chance(0.35) then
-      f.intent = 'bigshot'
+    elseif phase == 3 then
+      if util.chance(0.5) then
+        f.intent = 'ram'
+      elseif f.bigshotKegs > 0 and util.chance(0.35) then
+        f.intent = 'bigshot'
+      else
+        f.intent = 'fire'
+      end
+    elseif phase == 2 then
+      if (meta.data.tier or 0) >= 2 and f.volleyKegs > 0 and util.chance(0.25) then
+        f.intent = 'volley'
+      elseif f.bigshotKegs > 0 and util.chance(0.35) then
+        f.intent = 'bigshot'
+      else
+        f.intent = 'fire'
+      end
     else
-      f.intent = 'fire'
+      if f.bigshotKegs > 0 and util.chance(0.35) then
+        f.intent = 'bigshot'
+      else
+        f.intent = 'fire'
+      end
     end
     return
   end
@@ -519,6 +589,29 @@ end
 -- Plain (non-yielding) state reset shared by the tail of every round's
 -- coroutine, solo or fleet.
 local function backToTurnLogic()
+  for i, sh in ipairs(sb.ships) do
+    sh.movedThisTurn = false
+  end
+
+  local isIcy = game.run.sea and game.run.sea.biome == 'icy'
+  if sb.fleet and not isIcy then
+    local anyAblaze = false
+    for _, sh in ipairs(sb.ships) do
+      if sh.ablaze and sh.ablaze > 0 then anyAblaze = true end
+    end
+    if anyAblaze then
+      if sb.ships[1].range == 'NEAR' and sb.ships[2].range == 'NEAR' then
+        for _, sh in ipairs(sb.ships) do
+          if not sh.ablaze or sh.ablaze == 0 then
+            sh.ablaze = 3
+            local px, py = shipXY(sh.owner == 'p1' and 1 or 2)
+            engine.addFloat(px + 16, py - 18, 'FIRE SPREADS!', CO.orange, 1.5)
+          end
+        end
+      end
+    end
+  end
+
   -- Player Ablaze Tick:
   for i, sh in ipairs(sb.ships) do
     if sh.ablaze and sh.ablaze > 0 then
@@ -601,6 +694,43 @@ local function runFoeAct()
     fireBall('foe', target, dmg, {})
     waitAnim()
     wait(0.6)
+  elseif intent == 'ram' then
+    local sh = sb.ships[target]
+    local dodged = sh.movedThisTurn == true
+    if dodged then
+      f.hp = math.max(0, f.hp - data.KING.ramRecoil)
+      sb.msg = "YOU DODGED! THE GALLEON SCRAPES PAST AND TAKES " .. data.KING.ramRecoil .. " RECOIL!"
+      SFX.bump()
+      local ex, ey = shipXY('foe')
+      engine.addFloat(ex + 16, ey - 22, 'RAM DODGED! -' .. data.KING.ramRecoil .. ' HULL', CO.green, 2)
+      if f.hp <= 0 then
+        sb.over = true
+        SFX.bigwin()
+        sb.msg = 'SHIP DISABLED!'
+        local foeRef = sb.foeRef
+        foeRef.gunsStage = f.gunsStage
+        foeRef.sailsStage = f.sailsStage
+        beginCo(function()
+          wait(1.3)
+          engine.transition('BOARD THE SHIP!', function()
+            personBattle.startBoss(foeRef)
+          end)
+        end)
+        return
+      end
+      wait(1.0)
+    else
+      sh.hp = math.max(0, sh.hp - data.KING.ramDmg)
+      sb.msg = "THE GALLEON RAMS YOUR SHIP FOR " .. data.KING.ramDmg .. " DAMAGE!"
+      SFX.explode()
+      local px, py = shipXY(target)
+      engine.addFloat(px + 16, py - 18, '-' .. data.KING.ramDmg .. ' HULL', CO.red, 2)
+      if sh.hp <= 0 then
+        shipDown(target)
+        if sb.over then return end
+      end
+      wait(1.0)
+    end
   else
     local sh = sb.ships[target]
     local dmg
@@ -801,12 +931,13 @@ local function doShipAction(i, id)
     })
     waitAnim()
   elseif id == 'move' then
+    sh.movedThisTurn = true
     sh.range = sh.range == 'NEAR' and 'FAR' or 'NEAR'
-    local bigThreat = sb.isBoss and sb.foe.intent == 'bigshot' and sb.foe.target == i
+    local bigThreat = sb.isBoss and (sb.foe.intent == 'bigshot' or sb.foe.intent == 'ram') and sb.foe.target == i
     sh.dodge = shipRules.getDodgeChance(sh.sails, sh.sailsStage, bigThreat)
     SFX.move()
     local ex, ey = shipXY(i)
-    engine.addFloat(ex + 16, ey - 18, bigThreat and 'DODGE THE BIG SHOT!' or 'DODGE READY!', CO.foam, 1)
+    engine.addFloat(ex + 16, ey - 18, bigThreat and (sb.foe.intent == 'ram' and 'DODGE RAM!' or 'DODGE THE BIG SHOT!') or 'DODGE READY!', CO.foam, 1)
     wait(0.5)
   elseif id == 'fix' then
     sh.repairs = sh.repairs - 1

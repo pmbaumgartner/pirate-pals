@@ -30,14 +30,43 @@ local function decideFoeIntent(foe, player, level, isBoss)
   end
 
   if isBoss then
+    if foe.class == 'kraken' then
+      foe.intent = 'fire'
+      return
+    end
+
+    local hpRatio = foe.hp / foe.max
+    local phase = 1
+    if hpRatio <= 0.33 then
+      phase = 3
+    elseif hpRatio <= 0.67 then
+      phase = 2
+    end
+
     if foe.hp < foe.max * 0.3 and foe.repairs > 0 and math.random() < 0.6 then
       foe.intent = 'fix'
-    elseif (meta.data.tier or 0) >= 2 and foe.volleyKegs > 0 and math.random() < 0.25 then
-      foe.intent = 'volley'
-    elseif foe.bigshotKegs > 0 and math.random() < 0.35 then
-      foe.intent = 'bigshot'
+    elseif phase == 3 then
+      if math.random() < 0.5 then
+        foe.intent = 'ram'
+      elseif foe.bigshotKegs > 0 and math.random() < 0.35 then
+        foe.intent = 'bigshot'
+      else
+        foe.intent = 'fire'
+      end
+    elseif phase == 2 then
+      if (meta.data.tier or 0) >= 2 and foe.volleyKegs > 0 and math.random() < 0.25 then
+        foe.intent = 'volley'
+      elseif foe.bigshotKegs > 0 and math.random() < 0.35 then
+        foe.intent = 'bigshot'
+      else
+        foe.intent = 'fire'
+      end
     else
-      foe.intent = 'fire'
+      if foe.bigshotKegs > 0 and math.random() < 0.35 then
+        foe.intent = 'bigshot'
+      else
+        foe.intent = 'fire'
+      end
     end
     return
   end
@@ -164,7 +193,7 @@ function M.runBattle(profile)
 
     if player.hp < player.max * 0.40 and player.repairs > 0 then
       action = 'fix'
-    elseif foe.intent == 'bigshot' or foe.intent == 'volley' then
+    elseif foe.intent == 'bigshot' or foe.intent == 'volley' or foe.intent == 'ram' then
       action = 'move'
     else
       action = 'fire'
@@ -266,6 +295,13 @@ function M.runBattle(profile)
     elseif fIntent == 'move' then
       player.range = (player.range == 'NEAR') and 'FAR' or 'NEAR'
       foe.dodge = shipRules.getDodgeChance(foe.sails, foe.sailsStage, false)
+    elseif fIntent == 'ram' then
+      local dodged = (action == 'move')
+      if dodged then
+        foe.hp = math.max(0, foe.hp - 6)
+      else
+        player.hp = math.max(0, player.hp - 18)
+      end
     elseif fIntent == 'bigshot' then
       foe.bigshotKegs = foe.bigshotKegs - 1
       local dmg = isBoss and 20 or (14 + profile.level)

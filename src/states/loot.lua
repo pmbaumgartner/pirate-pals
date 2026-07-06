@@ -67,8 +67,8 @@ local function drawOptionPair(part, top, oh, card)
   end
 end
 
-function M.start(partsList, title)
-  loot = { parts = partsList, i = 0, title = title, done = false }
+function M.start(partsList, title, nextState)
+  loot = { parts = partsList, i = 0, title = title, nextState = nextState or 'sail', done = false }
   M.loot = loot
   engine.setState('loot')
   partSfx(partsList[1])
@@ -79,8 +79,10 @@ local function advance()
   if loot.i >= #loot.parts then
     if loot.done then return end
     loot.done = true
-    engine.transition('SET SAIL!', function()
-      engine.setState('sail')
+    local ns = loot.nextState or 'sail'
+    local transText = ns == 'dock' and 'PORT DOCK' or 'SET SAIL!'
+    engine.transition(transText, function()
+      engine.setState(ns)
     end)
   else
     partSfx(loot.parts[loot.i + 1])
@@ -297,6 +299,12 @@ engine.states.loot = {
       sprites.draw('sal_blueprint', VW / 2 - 12, by + 16, false, 2)
       font.drawText(data.SHOTS[part.id].label, VW / 2, by + 44, CO.white, 1, 'center')
       font.drawText('UNLOCKED!', VW / 2, by + 54, CO.green, 1, 'center')
+    elseif part.type == 'gossip' then
+      sprites.draw('bottleT', VW / 2 - 12, by + 4, false, 2)
+      font.drawText("THE KING'S GALLEON - IRON-BANDED TRIPLE-DECKER.", VW / 2, by + 26, CO.gold, 1, 'center')
+      font.drawText("CANNON FIRE BOUNCES OFF. BUT HER RIGGING IS", VW / 2, by + 36, CO.white, 1, 'center')
+      font.drawText("OLD, AND HER POWDER STORE IS DRY WOOD...", VW / 2, by + 46, CO.white, 1, 'center')
+      font.drawText("CHAIN STRIPS HER DODGE. FIRE TEARS HER APART!", VW / 2, by + 58, CO.green, 1, 'center')
     end
 
     for i = 0, #loot.parts - 1 do

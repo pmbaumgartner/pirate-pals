@@ -133,7 +133,7 @@ end
 -- Calculates the effective stat after applying a stage modifier.
 -- We clamp the stage to [-2, 0] since it's debuff-only and max debuff is -2.
 function M.clampStage(stage)
-  return math.max(-2, math.min(0, stage or 0))
+  return math.max(-2, math.min(1, stage or 0))
 end
 
 function M.getEffectiveStat(baseStat, stage)

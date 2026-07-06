@@ -271,12 +271,17 @@ local function placeSpecials(t, spawn, lv, boss, placed)
       specials[#specials + 1] = q
     end
   end
-  if not boss and lv >= 2 and util.chance(0.6) then
+  local last = (M.run.voyage and M.run.voyage.length or 8) - 1
+  if not boss and lv >= 2 and (lv == last or util.chance(0.6)) then
     local ev = freeTile(t, spawn, 3, placed)
     if ev then
       -- Bottles only where a "later sea" exists and no map is already held.
       local pool = { M.T_TRADER }
-      if lv <= 6 and not M.run.quest then pool[#pool + 1] = M.T_BOTTLE end
+      if lv == last and not M.run.gossipShown then
+        pool = { M.T_BOTTLE }
+      else
+        if lv <= 6 and not M.run.quest then pool[#pool + 1] = M.T_BOTTLE end
+      end
       t[ev.y][ev.x] = util.pick(pool)
       specials[#specials + 1] = ev
     end
@@ -482,6 +487,7 @@ function M.newGame(mode, colors)
     blueprints = {},
     blueprintDrops = { sea2 = false, sea5 = false },
     bossFlotsam = {},
+    gossipShown = false,
   }
   for id, owned in pairs(meta.data.hats) do
     if owned then M.run.owned[id] = true end
@@ -726,6 +732,7 @@ function M.load()
 
   saved.blueprints = saved.blueprints or {}
   saved.bossFlotsam = saved.bossFlotsam or {}
+  saved.gossipShown = saved.gossipShown or false
   -- One-time migration (5.1): hats used to live only in the per-run save;
   -- fold any already-owned hat into meta so it survives into New Voyage+,
   -- then merge meta's hats back down so hats bought at Home Port show up
