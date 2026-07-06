@@ -179,6 +179,20 @@ return function(ctx, h)
   wait(0.15)
   expect(game.run.fittings.slot == nil, 'magazine cycle left did not return to NONE')
 
+  -- Fitted-ship sprite tier matrix: pure sprite builds hitting every sails
+  -- (1/2/3), guns (0/1/2/3), and hull-row branch in buildFittedShip, plus
+  -- the untouched (0,0,0) baseline. Rebuilt from the run's real fittings
+  -- afterwards so the registered sprite matches the run again.
+  local sprites = require 'src.sprites'
+  local colorId = game.colorOf('p1')
+  for _, tiers in ipairs({ { 0, 0, 0 }, { 1, 1, 1 }, { 2, 2, 2 }, { 3, 3, 3 } }) do
+    sprites.buildFittedShip(colorId, tiers[1], tiers[2], tiers[3])
+    expect(sprites.shipSprite(colorId) == 'ship_' .. colorId .. '_fitted',
+      'buildFittedShip did not register the fitted ship sprite for tiers '
+      .. tiers[1] .. '/' .. tiers[2] .. '/' .. tiers[3])
+  end
+  sprites.buildFittedShip(colorId)
+
   engine.setState('log')
   wait(1.0)
   shot('log')

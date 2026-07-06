@@ -282,6 +282,14 @@ return function(ctx, h)
   expect(sh9.submenu == nil, 'an empty forced-open SPECIAL submenu should self-clear on the next tick')
   shot('ship-menu-edges')
 
+  -- Sails/guns damage arrows: drawStatusLeft/Right render their arrow rows
+  -- whenever a stage goes negative, every select-phase frame. No asserts
+  -- beyond the run surviving -- the bounds guard polices the layout.
+  sh9.sailsStage, sh9.gunsStage = -1, -1
+  sb9.foe.sailsStage, sb9.foe.gunsStage = -2, -2
+  wait(0.2)
+  shot('ship-damage-arrows')
+
   engine.setState('sail')
   h.settle()
   game.run.fittings.slot = nil

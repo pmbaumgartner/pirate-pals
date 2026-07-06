@@ -2,7 +2,8 @@
 -- role specials (captain rally, strongman smash, medic heal, sharpshooter
 -- longshot), the COVER modifier, a real walkWithTerrain move, an ice slide,
 -- a blocked shove bonk, the grape-sweep hp halving, target-stage backing
--- out, and moveCursor's hole-skip. Leaves crew/party/sea exactly as found
+-- out, moveCursor's hole-skip, the soggy turn forfeits on both sides, and
+-- the foe gunner's perch climb. Leaves crew/party/sea exactly as found
 -- (a fresh solo run: crew CAPPY+FIN+one recruit, party CAPPY+FIN, sea 3 calm).
 return function(ctx, h)
   local tap, wait, waitUntil, shot, expect =
@@ -12,6 +13,7 @@ return function(ctx, h)
   local bootBoarding, foeOf, teleport, freeNeighbor, freeTileAwayFrom =
     h.bootBoarding, h.foeOf, h.teleport, h.freeNeighbor, h.freeTileAwayFrom
   local openActMenu, palAttack, palMenuPick = h.openActMenu, h.palAttack, h.palMenuPick
+  local palStay, partyPhase, timing = h.palStay, h.partyPhase, h.timing
   local gk = grid.gk
 
   local run = game.run
@@ -246,6 +248,53 @@ return function(ctx, h)
   wait(0.2)
   expect(pb11.pl.p1.cursor.x == 9 and pb11.pl.p1.cursor.y == 0,
     'moveCursor did not skip the gangplank gap')
+  engine.setState('sail')
+  wait(0.3)
+
+  -- 12: soggy forfeits, both sides -- a soggy foe forfeits its whole foe
+  -- phase (GLUB! + flag clear), and a soggy pal starts the next player turn
+  -- pre-acted with the flag cleared.
+  local pb12 = bootBoarding({ lv = 2, name = 'SOGGY FOE', class = 'sloop' }, { 'grunt' }, 'classic', { cappy, fin })
+  local grunt12 = foeOf(pb12, 'grunt')
+  local capU12, finU12 = pb12.units[1], pb12.units[2]
+  teleport(grunt12, freeTileAwayFrom(pb12, capU12.x, capU12.y, 6))
+  ai.planFoeIntents()
+  grunt12.soggy, finU12.soggy = true, true
+  local gx12, gy12 = grunt12.x, grunt12.y
+  palStay(pb12, capU12)
+  palStay(pb12, finU12)
+  partyPhase(pb12)
+  expect(not grunt12.soggy, 'soggy foe did not clear its flag on the forfeited turn')
+  expect(grunt12.x == gx12 and grunt12.y == gy12, 'a soggy foe should forfeit its move')
+  expect(not finU12.soggy and finU12.acted,
+    'soggy pal did not start the turn pre-acted with the flag cleared')
+  engine.setState('sail')
+  wait(0.3)
+
+  -- 13: gunner perch -- walkToward's gunner fallback: a foe gunner within
+  -- move range of the free crowsnest perch, whose target is shootable only
+  -- with the perch's +1 range, climbs it before firing.
+  local pb13 = bootBoarding({ lv = 2, name = 'PERCH FOE', class = 'sloop' }, { 'gunner' }, 'crowsnest', { cappy, fin })
+  local gunner13 = foeOf(pb13, 'gunner')
+  expect(pb13.perch, 'crowsnest deck is missing its perch tile')
+  local capU13, finU13 = pb13.units[1], pb13.units[2]
+  -- Perch at (3,3): CAPPY at (3,6) is 3 from the perch (inside its range-4
+  -- shot) but 5 from the gunner at (3,1) (outside its base range 3); FIN
+  -- parks further out so CAPPY stays the nearest target.
+  teleport(capU13, 3, 6)
+  teleport(finU13, 1, 6)
+  teleport(gunner13, 3, 1)
+  ai.planFoeIntents()
+  local capHp13 = capU13.hp
+  palStay(pb13, capU13)
+  palStay(pb13, finU13)
+  -- The gunner climbs, then fires from the perch: block the parry bar.
+  waitUntil(function() return timing.on or pb13.phase == 'party' end, 15)
+  if timing.on then h.landTiming() end
+  partyPhase(pb13)
+  expect(gunner13.x == pb13.perch[1] and gunner13.y == pb13.perch[2],
+    'foe gunner did not climb the free perch')
+  expect(capU13.hp <= capHp13, 'the perched gunner should have targeted CAPPY')
   engine.setState('sail')
   wait(0.3)
 
