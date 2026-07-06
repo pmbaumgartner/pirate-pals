@@ -463,6 +463,10 @@ function M.newGame(mode, colors)
     bonds = {}, bondsMade = {}, log = {},
     metaTier = meta.data.tier or 0,
     seenDecks = {},
+    salvage = { timber = 0, cloth = 0, iron = 0 },
+    fittings = { hull = 0, sails = 0, guns = 0, slot = nil },
+    blueprints = {},
+    bossFlotsam = {},
   }
   for id, owned in pairs(meta.data.hats) do
     if owned then M.run.owned[id] = true end
@@ -695,6 +699,18 @@ function M.load()
   saved.bondsMade = saved.bondsMade or {}
   saved.log = saved.log or {}
   saved.metaTier = saved.metaTier or 0
+  saved.salvage = saved.salvage or {}
+  saved.salvage.timber = saved.salvage.timber or 0
+  saved.salvage.cloth = saved.salvage.cloth or 0
+  saved.salvage.iron = saved.salvage.iron or 0
+
+  saved.fittings = saved.fittings or {}
+  saved.fittings.hull = saved.fittings.hull or 0
+  saved.fittings.sails = saved.fittings.sails or 0
+  saved.fittings.guns = saved.fittings.guns or 0
+
+  saved.blueprints = saved.blueprints or {}
+  saved.bossFlotsam = saved.bossFlotsam or {}
   -- One-time migration (5.1): hats used to live only in the per-run save;
   -- fold any already-owned hat into meta so it survives into New Voyage+,
   -- then merge meta's hats back down so hats bought at Home Port show up

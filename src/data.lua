@@ -386,4 +386,79 @@ function M.perkById(id)
   return PERK_BY_ID[id]
 end
 
+-- Ship Combat Overhaul (Stage 0):
+M.SHOTS = {
+  round = { id = 'round', label = 'ROUND SHOT', power = 7, powder = 999999, effect = 'plain' },
+  chain = { id = 'chain', label = 'CHAIN SHOT', power = 4, powder = 3, effect = 'sails_down' },
+  grape = { id = 'grape', label = 'GRAPE SHOT', power = 3, powder = 3, effect = 'guns_down' },
+  fire  = { id = 'fire',  label = 'FIRE SHOT',  power = 5, powder = 2, effect = 'ablaze' },
+}
+
+M.SHIPCLASSES = {
+  sloop = {
+    id = 'sloop',
+    name = 'SLOOP',
+    hullBase = 12,
+    hullScale = 4,
+    guns = 1,
+    sails = 3,
+    weak = 'chain',
+    ai = 'sloop',
+    armor = 0,
+  },
+  brig = {
+    id = 'brig',
+    name = 'BRIG',
+    hullBase = 16,
+    hullScale = 6,
+    guns = 2,
+    sails = 2,
+    weak = 'grape',
+    ai = 'brig',
+    armor = 0,
+  },
+  fireship = {
+    id = 'fireship',
+    name = 'FIRESHIP',
+    hullBase = 10,
+    hullScale = 3,
+    guns = 0,
+    sails = 2,
+    weak = 'round',
+    ai = 'fireship',
+    armor = 0,
+  },
+  manowar = {
+    id = 'manowar',
+    name = 'MAN-O-WAR',
+    hullBase = 22,
+    hullScale = 8,
+    guns = 3,
+    sails = 1,
+    weak = 'fire',
+    ai = 'manowar',
+    armor = 2,
+  }
+}
+
+M.KING = {
+  name = "KING'S GALLEON",
+  hull = 120,
+  repairs = 1,
+  armor = 1,
+  weak = 'fire',
+  bigshotKegs = 3,
+  volleyKegs = 2,
+  ramDmg = 18,
+  ramRecoil = 6,
+  fleetHull = 180,
+  fleetBigshotKegs = 4,
+  kraken = {
+    hull = 120,
+    weak = 'chain',
+    immuneAblaze = true,
+  }
+}
+
 return M
+
