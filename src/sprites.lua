@@ -665,6 +665,65 @@ local TREASURE_ART = {
   star   = {"............",".....OO.....",".....OO.....",".OOOOOOOOOO.","..OOOOOOOO..","...OOOOOO...","...OO..OO...","..OO....OO..","............","............","............","............"},
 }
 
+local SALVAGE_ART = {
+  timber = {
+    "............",
+    "............",
+    "..bbbbbbbb..",
+    ".bBBBBBBBBb.",
+    ".bBBbbbbBBb.",
+    ".bBBBBBBBBb.",
+    "..bbbbbbbb..",
+    "............",
+    "..bbbbbbbb..",
+    ".bBBBBBBBBb.",
+    "..bbbbbbbb..",
+    "............"
+  },
+  cloth = {
+    "............",
+    "....WWWW....",
+    "...WWWWWW...",
+    "..WWWWWWWW..",
+    ".WWWWWWWWWW.",
+    ".WWwwwwwwWW.",
+    ".WWwwwwwwWW.",
+    ".WWWWWWWWWW.",
+    "..WWWWWWWW..",
+    "...WWWWWW...",
+    "....WWWW....",
+    "............"
+  },
+  iron = {
+    "............",
+    "....LLLL....",
+    "...LLllll...",
+    "..LLllllll..",
+    ".LLllllllll.",
+    ".LllllllllL.",
+    ".LllllllllL.",
+    ".LLllllllLL.",
+    "..LLllllLL..",
+    "...LLLLLL...",
+    "....LLLL....",
+    "............"
+  },
+  blueprint = {
+    "............",
+    "...CCCCCC...",
+    "..CCccwwcCC.",
+    "..CccwwwccC.",
+    "..CcwwwwccC.",
+    "..CccwwwccC.",
+    "..CcwwwwccC.",
+    "..CccwwwccC.",
+    "..CCccwwcCC.",
+    "...CCCCCC...",
+    "............",
+    "............"
+  }
+}
+
 -- Perk pick icons (3.3): small, shown on the loot perk card only.
 local PERK_ART = {
   boots  = {"........", "..BB.BB.", "..BB.BB.", "..bb.bb.", "bbbb.bbb", "........"},
@@ -712,6 +771,10 @@ local function makeSprite(name, rows, map)
     assert(#rows[i] == w,
       ('sprite %s row %d len %d != %d'):format(name, i, #rows[i], w))
   end
+  if not love.image or not gfx.newImage then
+    SPR[name] = true
+    return
+  end
   local pixels = love.image.newImageData(w, h)
   for y = 1, h do
     for x = 1, w do
@@ -728,6 +791,70 @@ local function makeSprite(name, rows, map)
   local img = gfx.newImage(pixels)
   img:setFilter('nearest', 'nearest')
   SPR[name] = img
+end
+
+function M.buildFittedShip(colorId, hullTier, sailsTier, gunsTier)
+  local game = require 'src.game'
+  hullTier = hullTier or (game.run and game.run.fittings and game.run.fittings.hull) or 0
+  sailsTier = sailsTier or (game.run and game.run.fittings and game.run.fittings.sails) or 0
+  gunsTier = gunsTier or (game.run and game.run.fittings and game.run.fittings.guns) or 0
+
+  local c = data.playerColorById(colorId)
+  local rows = {}
+  for i, row in ipairs(SHIP) do
+    rows[i] = row
+  end
+
+  -- Sails: Row 6, 7, 8, 9 (1-indexed)
+  if sailsTier >= 3 then
+    rows[6] = "...KWRWRWK......"
+    rows[7] = "...KWRWRWRWK...."
+    rows[8] = "...KWRWRWRWRWK.."
+    rows[9] = "...KWRWRWRWK...."
+  elseif sailsTier == 2 then
+    rows[6] = "...KWRWWWK......"
+    rows[7] = "...KWRWWWRWK...."
+    rows[8] = "...KWRWWWWWRWK.."
+    rows[9] = "...KWRWWWRWK...."
+  elseif sailsTier == 1 then
+    rows[6] = "...KWWWRWK......"
+    rows[7] = "...KWWWWRWWK...."
+    rows[8] = "...KWWWWWRWWWK.."
+    rows[9] = "...KWWWWRWWK...."
+  end
+
+  -- Guns: Row 13
+  if gunsTier == 0 then
+    rows[13] = ".KBBBBBYBBBBBBK."
+  elseif gunsTier == 1 then
+    rows[13] = ".KBBYBBBBBYBBK.."
+  elseif gunsTier == 2 then
+    rows[13] = ".KBBYBBYBBYBBK.."
+  elseif gunsTier >= 3 then
+    rows[13] = ".KBYBYBBYBBYBYK."
+  end
+
+  -- Hull: Row 12, 14
+  if hullTier >= 1 then
+    local r12 = rows[12]
+    rows[12] = r12:sub(1,3) .. "LL" .. r12:sub(6)
+    local r14 = rows[14]
+    rows[14] = r14:sub(1,3) .. "ll" .. r14:sub(6)
+  end
+  if hullTier >= 2 then
+    local r12 = rows[12]
+    rows[12] = r12:sub(1,9) .. "LL" .. r12:sub(12)
+    local r14 = rows[14]
+    rows[14] = r14:sub(1,9) .. "ll" .. r14:sub(12)
+  end
+  if hullTier >= 3 then
+    local r12 = rows[12]
+    rows[12] = r12:sub(1,6) .. "LL" .. r12:sub(9)
+    local r14 = rows[14]
+    rows[14] = r14:sub(1,6) .. "ll" .. r14:sub(9)
+  end
+
+  makeSprite('ship_' .. colorId .. '_fitted', rows, { W = c.sail, R = c.flag })
 end
 
 function M.build()
@@ -789,11 +916,13 @@ function M.build()
   makeSprite('hat_patch', HATS.patch)
   for id, art in pairs(TREASURE_ART) do makeSprite('tr_' .. id, art) end
   for id, art in pairs(PERK_ART) do makeSprite('perk_' .. id, art) end
+  for id, art in pairs(SALVAGE_ART) do makeSprite('sal_' .. id, art) end
   -- Crew-color variants: one sail/flag-painted ship and one sash-painted
   -- body per player role per color. The unsuffixed shipP / pir_<role> bakes
   -- above stay as the classic fallback (title screen, previews, enemies).
   for _, c in ipairs(data.PLAYER_COLORS) do
     makeSprite('ship_' .. c.id, SHIP, { W = c.sail, R = c.flag })
+    M.buildFittedShip(c.id, 0, 0, 0)
     for role, art in pairs(PLAYER_BODY) do
       makeSprite('pir_' .. role .. '_' .. c.id, art, withAccent(ROLE_COAT[role], c.accent))
     end
@@ -839,7 +968,9 @@ end
 -- Sail sprite for a crew color; falls back to classic shipP when the color
 -- is unset or unknown.
 function M.shipSprite(colorId)
-  local name = colorId and ('ship_' .. colorId)
+  local name = colorId and ('ship_' .. colorId .. '_fitted')
+  if name and SPR[name] then return name end
+  name = colorId and ('ship_' .. colorId)
   if name and SPR[name] then return name end
   return 'shipP'
 end

@@ -22,10 +22,10 @@ local loot = nil
 
 local function partSfx(part)
   if not part then return end
-  if part.type == 'gold' or part.type == 'treasure' or part.type == 'trade' then SFX.coin()
+  if part.type == 'gold' or part.type == 'treasure' or part.type == 'trade' or part.type == 'salvage' then SFX.coin()
   elseif part.type == 'level' or part.type == 'perk' then SFX.level()
   elseif part.type == 'unlock' or part.type == 'recruit' or part.type == 'bond'
-    or part.type == 'bottle' then SFX.fanfare()
+    or part.type == 'bottle' or part.type == 'blueprint_choice' or part.type == 'blueprint_single' then SFX.fanfare()
   elseif part.type == 'clear' then SFX.bigwin() end
 end
 
@@ -155,6 +155,18 @@ engine.states.loot = {
           advance()
         end
       end
+    elseif part.type == 'blueprint_choice' then
+      if #part.options > 1 and (input.jp('left') or input.jp('right')) then
+        part.choice = part.choice == 1 and 2 or 1
+        SFX.move()
+      elseif input.jp('a') then
+        local opt = part.options[part.choice]
+        if opt then
+          game.run.blueprints[opt.id] = true
+          SFX.fanfare()
+          advance()
+        end
+      end
     elseif input.jp('a') or input.jp('b') then
       advance()
     end
@@ -265,14 +277,34 @@ engine.states.loot = {
         }
       end)
       font.drawText('< > PICK   ' .. input.promptKey(input.p1, 'a') .. ' CONFIRM', VW / 2, by + 63, CO.paper, 1, 'center')
+    elseif part.type == 'salvage' then
+      sprites.draw('sal_' .. part.material, VW / 2 - 12, by + 6, false, 2)
+      local matLabel = part.material == 'cloth' and 'SAILCLOTH' or part.material:upper()
+      font.drawText('+' .. part.n .. ' ' .. matLabel, VW / 2, by + 34, CO.gold, 1, 'center')
+      font.drawText('SALVAGE ADDED!', VW / 2, by + 46, CO.paper, 1, 'center')
+    elseif part.type == 'blueprint_choice' then
+      font.drawText('BLUEPRINT FOUND!', VW / 2, by + 4, CO.gold, 1, 'center')
+      font.drawText('CHOOSE A BLUEPRINT!', VW / 2, by + 12, CO.paper, 1, 'center')
+      drawOptionPair(part, by + 19, 40, function(opt, _, sel)
+        return {
+          outline = CO.gold, sprite = 'sal_blueprint', sw = 6,
+          name = sel and CO.gold or CO.white, desc = CO.green,
+        }
+      end)
+      font.drawText('< > PICK   ' .. input.promptKey(input.p1, 'a') .. ' CONFIRM', VW / 2, by + 63, CO.paper, 1, 'center')
+    elseif part.type == 'blueprint_single' then
+      font.drawText('BLUEPRINT FOUND!', VW / 2, by + 6, CO.gold, 1, 'center')
+      sprites.draw('sal_blueprint', VW / 2 - 12, by + 16, false, 2)
+      font.drawText(data.SHOTS[part.id].label, VW / 2, by + 44, CO.white, 1, 'center')
+      font.drawText('UNLOCKED!', VW / 2, by + 54, CO.green, 1, 'center')
     end
 
     for i = 0, #loot.parts - 1 do
       gfx.setColor(i <= loot.i and CO.gold or CO.grayD)
       gfx.rectangle('fill', VW / 2 - #loot.parts * 4 + i * 8, 158, 5, 5)
     end
-    -- perk/trade draw their hint above, inside the card
-    if part.type ~= 'perk' and part.type ~= 'trade' then
+    -- perk/trade/blueprint_choice draw their hint above, inside the card
+    if part.type ~= 'perk' and part.type ~= 'trade' and part.type ~= 'blueprint_choice' then
       font.drawText(input.promptKey(input.p1, 'a') .. ' NEXT', VW / 2, 168, CO.gray, 1, 'center')
     end
   end,

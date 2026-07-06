@@ -353,7 +353,31 @@ shipDown = function(i)
   if not sb.fleet then
     sb.over = true
     SFX.lose()
-    sb.msg = 'YOUR SHIP SLIPS AWAY...'
+    local gotFlotsam = false
+    local seaLv = game.run.sea.lv
+    if sb.isBoss then
+      game.run.bossFlotsam[seaLv] = game.run.bossFlotsam[seaLv] or 0
+      if game.run.bossFlotsam[seaLv] < 3 then
+        game.run.bossFlotsam[seaLv] = game.run.bossFlotsam[seaLv] + 1
+        game.run.salvage.timber = game.run.salvage.timber + 1
+        gotFlotsam = true
+      end
+    else
+      local foe = sb.foeRef
+      if foe and not foe.flotsamPaid then
+        foe.flotsamPaid = true
+        game.run.salvage.timber = game.run.salvage.timber + 1
+        gotFlotsam = true
+      end
+    end
+
+    if gotFlotsam then
+      sb.msg = "FISHED WRECKAGE FROM YOUR WAKE! (+1 TIMBER)"
+      engine.showBanner("SLIPPED AWAY!", CO.orange, 1.3)
+    else
+      sb.msg = 'YOUR SHIP SLIPS AWAY...'
+    end
+
     beginCo(function()
       wait(1.3)
       engine.transition('SAFE AND SOUND!', function() engine.setState('sail') end)
@@ -368,7 +392,31 @@ shipDown = function(i)
   if otherPatched then
     sb.over = true
     SFX.lose()
-    sb.msg = 'BOTH SHIPS SLIP AWAY...'
+    local gotFlotsam = false
+    local seaLv = game.run.sea.lv
+    if sb.isBoss then
+      game.run.bossFlotsam[seaLv] = game.run.bossFlotsam[seaLv] or 0
+      if game.run.bossFlotsam[seaLv] < 3 then
+        game.run.bossFlotsam[seaLv] = game.run.bossFlotsam[seaLv] + 1
+        game.run.salvage.timber = game.run.salvage.timber + 1
+        gotFlotsam = true
+      end
+    else
+      local foe = sb.foeRef
+      if foe and not foe.flotsamPaid then
+        foe.flotsamPaid = true
+        game.run.salvage.timber = game.run.salvage.timber + 1
+        gotFlotsam = true
+      end
+    end
+
+    if gotFlotsam then
+      sb.msg = "FISHED WRECKAGE FROM YOUR WAKE! (+1 TIMBER)"
+      engine.showBanner("SLIPPED AWAY!", CO.orange, 1.3)
+    else
+      sb.msg = 'BOTH SHIPS SLIP AWAY...'
+    end
+
     beginCo(function()
       wait(1.3)
       engine.transition('SAFE AND SOUND!', function() engine.setState('sail') end)

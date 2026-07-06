@@ -82,7 +82,7 @@ engine.states.tailor = {
       driveSails()
       if input.jp('b') then
         SFX.back()
-        engine.setState('sail')
+        engine.setState('dock')
       end
       return
     end
@@ -111,7 +111,7 @@ engine.states.tailor = {
     end
     if input.jp('b') then
       SFX.back()
-      engine.setState('sail')
+      engine.setState('dock')
     end
   end,
 

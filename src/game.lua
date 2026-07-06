@@ -480,6 +480,7 @@ function M.newGame(mode, colors)
     salvage = { timber = 0, cloth = 0, iron = 0 },
     fittings = { hull = 0, sails = 0, guns = 0, slot = nil },
     blueprints = {},
+    blueprintDrops = { sea2 = false, sea5 = false },
     bossFlotsam = {},
   }
   for id, owned in pairs(meta.data.hats) do
@@ -746,7 +747,18 @@ function M.load()
     saved.sea.rockT = saved.sea.rockT or 2.5
     saved.sea.shipHurt = saved.sea.shipHurt or 0
   end
+  saved.blueprintDrops = saved.blueprintDrops or {}
+  saved.blueprintDrops.sea2 = saved.blueprintDrops.sea2 or false
+  saved.blueprintDrops.sea5 = saved.blueprintDrops.sea5 or false
+
   M.run = unshapeRun(saved)
+  local ok, sprites = pcall(require, 'src.sprites')
+  if ok and sprites.buildFittedShip then
+    sprites.buildFittedShip(M.colorOf('p1'))
+    if M.isCoop() then
+      sprites.buildFittedShip(M.colorOf('p2'))
+    end
+  end
   return true
 end
 

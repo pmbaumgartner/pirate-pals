@@ -101,6 +101,8 @@ function love.load(args)
   require 'src.states.chart'
   require 'src.states.victory'
   require 'src.states.port'
+  require 'src.states.dock'
+  require 'src.states.drydock'
 
   computeScale()
   engine.setState('title')

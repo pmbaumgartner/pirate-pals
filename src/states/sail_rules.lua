@@ -393,7 +393,7 @@ local function handleArrival(sh, shipKey)
   local tl = game.tileAt(sh.x, sh.y)
   if tl ~= game.T_WATER then sh.route = nil end
   if tl == game.T_CHEST then openChest(sh.x, sh.y); return true end
-  if tl == game.T_PORT then engine.setState('tailor'); return true end
+  if tl == game.T_PORT then engine.setState('dock'); return true end
   if tl == game.T_EXIT then return tryEnterExit(sh, shipKey) end
   if tl == game.T_BOTTLE then foundBottle(sh.x, sh.y); return true end
   if tl == game.T_TRADER then meetTrader(sh.x, sh.y); return true end
