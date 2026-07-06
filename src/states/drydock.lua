@@ -85,11 +85,11 @@ engine.states.drydock = {
       end
       if input.rp('left') then
         curIdx = (curIdx - 2 + #opts) % #opts + 1
-        game.run.fittings.slot = (opts[curIdx] == 'none') and nil or opts[curIdx]
+        game.run.fittings.slot = opts[curIdx] ~= 'none' and opts[curIdx] or nil
         SFX.move()
       elseif input.rp('right') then
         curIdx = (curIdx) % #opts + 1
-        game.run.fittings.slot = (opts[curIdx] == 'none') and nil or opts[curIdx]
+        game.run.fittings.slot = opts[curIdx] ~= 'none' and opts[curIdx] or nil
         SFX.move()
       end
     else
