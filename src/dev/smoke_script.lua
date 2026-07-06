@@ -570,11 +570,13 @@ expect(sbT.ships[1].chosen == nil and sbT.ships[2].chosen == nil,
 sbT.ships[1].range, sbT.ships[2].range = 'NEAR', 'NEAR'
 sbT.idleT = 0
 tap('a') -- P1 menu: MOVE -> back to FIRE
-tap('z')
+tap('z') -- open P1 fire submenu
+tap('z') -- lock in ROUND SHOT
 wait(0.1)
-expect(sbT.ships[1].chosen == 'fire', 'P1 did not lock in FIRE')
+expect(sbT.ships[1].chosen == 'fire_round', 'P1 did not lock in FIRE')
 tap2('left')
-tap2('a')
+tap2('a') -- open P2 fire submenu
+tap2('a') -- lock in ROUND SHOT
 waitUntil(function() return require('src.timing').coopMode or sbT.over end, 5)
 expect(sbT.broadsideUsed, 'both FIRE at NEAR did not arm BROADSIDE')
 shot('broadside')

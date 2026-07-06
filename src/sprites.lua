@@ -123,6 +123,60 @@ local E_SHIP = {
   "..KKKKKKKKKKK...",
   "................" }
 
+local SLOOP_SHIP = {
+  "................",
+  "....K...........",
+  "....KKKKKK......",
+  "....KwwwwK......",
+  "....KwKKwK......",
+  "...KWW.WWK......",
+  "...KWWWWWW.K....",
+  "...KWWBBWWWWK...",
+  "....K...........",
+  "....K...........",
+  "..KKKKKKKKKKK...",
+  "..KBBBBBBBBBK...",
+  "...KBBYBBYBBK...",
+  "...KbbbbbbbbK...",
+  "....KKKKKKK.....",
+  "................" }
+
+local FIRESHIP_SHIP = {
+  "................",
+  "....K.O.O.......",
+  "....KKKKKK......",
+  "....KwwwwK......",
+  "....KwKKwK......",
+  "...KWW.WWK......",
+  "...KWWWWWW.K....",
+  "...KWWBBWWWWK...",
+  "...KW.WWWBW.K...",
+  "....K...........",
+  "KKKKKKKKKKKKKKK.",
+  "KBBBBBBBBBBBBBK.",
+  ".KBBYBBYBBYBBK..",
+  ".KbbbbbbbbbbbK..",
+  "..KKKKKKKKKKK...",
+  "................" }
+
+local MANOWAR_SHIP = {
+  "................",
+  "....K.K.........",
+  "....KKKKKKKK....",
+  "....KwwwwwwK....",
+  "....KwKKKKwK....",
+  "...KWWWWWWWWK...",
+  "...KWWWWWWWWK...",
+  "..KWWWWWWWWWWK..",
+  "..KWWBBBBBBWWK..",
+  "....K.K.........",
+  "KKKKKKKKKKKKKKKK",
+  "KBBBBBBBBBBBBBBK",
+  "KBBYYBYYBYYBYYBK",
+  "KbbbbbbbbbbbbbbK",
+  ".KKKKKKKKKKKKKK.",
+  "................" }
+
 -- King's ship: the player hull with a gold crown emblem on the sail — the
 -- boss reads by its emblem (same shape language as hat_crown), not paleness.
 local SHIP_KING = copyRows(SHIP)
@@ -679,6 +733,10 @@ end
 function M.build()
   makeSprite('shipP', SHIP)
   makeSprite('shipE', E_SHIP, { W = '#463d5c', B = '#5a4a63', b = '#3c3147', Y = '#8f2430', w = '#ffffff' })
+  makeSprite('shipSloop', SLOOP_SHIP, { W = '#463d5c', B = '#5a4a63', b = '#3c3147', Y = '#8f2430', w = '#ffffff' })
+  makeSprite('shipBrig', E_SHIP, { W = '#463d5c', B = '#5a4a63', b = '#3c3147', Y = '#8f2430', w = '#ffffff' })
+  makeSprite('shipFireship', FIRESHIP_SHIP, { W = '#463d5c', B = '#5a4a63', b = '#3c3147', Y = '#ff9838', w = '#ffffff', O = '#ff9838' })
+  makeSprite('shipManowar', MANOWAR_SHIP, { W = '#463d5c', B = '#5a4a63', b = '#3c3147', Y = '#8f2430', w = '#ffffff' })
   makeSprite('shipKing', SHIP_KING, { W = '#e8d4ff', R = '#ffcf40', B = '#4a2f5c', b = '#301f3c', Y = '#ffcf40', K = '#150b1f' })
   makeSprite('island', ISLAND)
   makeSprite('icon_fire', ICON_FIRE)

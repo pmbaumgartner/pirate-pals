@@ -284,7 +284,7 @@ local function placeSpecials(t, spawn, lv, boss, placed)
   return specials, questPlaced
 end
 
-local function placeEnemies(t, spawn, lv, boss, placed)
+local function placeEnemies(t, spawn, lv, boss, placed, biome)
   local enemies = {}
   if boss then
     local bp = freeTile(t, spawn, 10, placed)
@@ -302,9 +302,23 @@ local function placeEnemies(t, spawn, lv, boss, placed)
     for _ = 1, math.min(2 + math.floor(lv / 2), 4) do
       local e = freeTile(t, spawn, 8, placed)
       if e and not M.enemyAtList(enemies, e.x, e.y) then
+        local pool
+        if biome == 'calm' then
+          pool = { 'brig', 'brig', 'brig', 'sloop', 'sloop', 'fireship', 'manowar' }
+        elseif biome == 'foggy' then
+          pool = { 'sloop', 'sloop', 'sloop', 'brig', 'fireship', 'manowar' }
+        elseif biome == 'volcano' then
+          pool = { 'fireship', 'fireship', 'fireship', 'brig', 'sloop', 'manowar' }
+        elseif biome == 'icy' then
+          pool = { 'manowar', 'manowar', 'brig', 'sloop', 'fireship' }
+        else
+          pool = { 'brig', 'sloop', 'fireship', 'manowar' }
+        end
+        local cls = util.pick(pool)
         enemies[#enemies + 1] = {
           x = e.x, y = e.y, lv = lv, name = util.pick(data.FOE_CAPTAINS),
           t = love.math.random() * 2, fx = e.x, fy = e.y,
+          class = cls,
         }
       end
     end
@@ -415,7 +429,7 @@ function M.genSea(lv, biome)
     end
 
     local specials, questPlaced = placeSpecials(t, spawn, lv, boss, placed)
-    local enemies = placeEnemies(t, spawn, lv, boss, placed)
+    local enemies = placeEnemies(t, spawn, lv, boss, placed, biome)
 
     if seaReachable(t, spawn, exit, port, chests, specials, enemies, boss) then
       M.run.sea = {

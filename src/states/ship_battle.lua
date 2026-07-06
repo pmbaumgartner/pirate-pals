@@ -99,6 +99,8 @@ function M.start(foe)
   if isBoss then
     bigshotKegs = fleet and 4 or 3
     volleyKegs = 2
+  elseif foeClass == 'manowar' then
+    bigshotKegs = 3
   end
   -- Fleet battles land ~2x player actions per round (two captains firing
   -- instead of one); scale the foe up here, in the one place, rather than
@@ -115,6 +117,10 @@ function M.start(foe)
     hurt = game.run.sea.shipHurt or 0
     game.run.sea.shipHurt = 0
   end
+
+  local isFoggy = game.run.sea and game.run.sea.biome == 'foggy'
+  local startSailsStage = isFoggy and 1 or 0
+
   -- FIGUREHEAD raises max ship HP; BETTER SAILS grants one free auto-dodge
   -- per battle (reuses the existing dodge-chance field, guaranteed at 1 —
   -- the first incoming hit rolls against it and is consumed like any dodge).
@@ -129,7 +135,13 @@ function M.start(foe)
       patched = false, patchRounds = 0,
       guns = shipRules.getPlayerGuns(1),
       sails = shipRules.getPlayerSails(1),
-      gunsStage = 0, sailsStage = 0,
+      gunsStage = 0, sailsStage = startSailsStage,
+      powder = {
+        round = data.SHOTS.round.powder,
+        chain = data.SHOTS.chain.powder,
+        grape = data.SHOTS.grape.powder,
+        fire = data.SHOTS.fire.powder,
+      },
     },
   }
   if fleet then
@@ -140,7 +152,13 @@ function M.start(foe)
       patched = false, patchRounds = 0,
       guns = shipRules.getPlayerGuns(2),
       sails = shipRules.getPlayerSails(2),
-      gunsStage = 0, sailsStage = 0,
+      gunsStage = 0, sailsStage = startSailsStage,
+      powder = {
+        round = data.SHOTS.round.powder,
+        chain = data.SHOTS.chain.powder,
+        grape = data.SHOTS.grape.powder,
+        fire = data.SHOTS.fire.powder,
+      },
     }
   end
   sb = {
@@ -159,7 +177,7 @@ function M.start(foe)
       weak = foeWeak,
       class = foeClass,
       gunsStage = 0,
-      sailsStage = 0,
+      sailsStage = startSailsStage,
     },
     ships = ships,
     turn = fleet and 'select' or 'you',
@@ -276,7 +294,36 @@ impact = function(who, dmg, opts)
     elseif opts.isResisted then
       engine.addFloat(ex + 16, ey - 14, 'IT GLANCES OFF...', CO.gray, 1.2)
     end
+
+    -- Apply shot status and stage debuffs:
+    if opts.res and opts.res ~= 'miss' then
+      if opts.shotId == 'chain' then
+        tgt.sailsStage = math.max(-2, tgt.sailsStage - 1)
+        engine.addFloat(ex + 16, ey - 24, 'SAILS DOWN!', CO.orange, 1.5)
+        if tgt.intent == 'move' then
+          tgt.intent = nil
+          sb.msg = "HER SAILS HANG IN RIBBONS!"
+        else
+          sb.msg = "HER SAILS HANG IN RIBBONS!"
+        end
+      elseif opts.shotId == 'grape' then
+        tgt.gunsStage = math.max(-2, tgt.gunsStage - 1)
+        sb.msg = "YOU SWEPT HER DECK!"
+        engine.addFloat(ex + 16, ey - 24, 'GUNS DOWN!', CO.orange, 1.5)
+      elseif opts.shotId == 'fire' then
+        tgt.ablaze = 3
+        sb.msg = "SHE IS ABLAZE!"
+        engine.addFloat(ex + 16, ey - 24, 'ABLAZE!', CO.orange, 1.5)
+      end
+    end
+  else
+    -- Player ship took hit:
+    if opts.isFireShot then
+      tgt.ablaze = 3
+      engine.addFloat(ex + 16, ey - 24, 'ABLAZE!', CO.orange, 1.5)
+    end
   end
+
   if tgt.hp <= 0 then
     if who == 'foe' then
       sb.over = true
@@ -284,6 +331,8 @@ impact = function(who, dmg, opts)
       sb.msg = 'SHIP DISABLED!'
       local isBoss = sb.isBoss
       local foeRef = sb.foeRef
+      foeRef.gunsStage = sb.foe.gunsStage
+      foeRef.sailsStage = sb.foe.sailsStage
       beginCo(function()
         wait(1.3)
         engine.transition('BOARD THE SHIP!', function()
@@ -350,6 +399,13 @@ decideIntent = function()
     if not sh.patched then candidates[#candidates + 1] = i end
   end
   f.target = #candidates > 0 and util.pick(candidates) or 1
+
+  -- Ablaze check for douse intent (fireship or boss):
+  if f.ablaze and f.ablaze > 0 and (f.class == 'fireship' or sb.isBoss) then
+    f.intent = 'douse'
+    return
+  end
+
   if sb.isBoss then
     if f.hp < f.max * 0.3 and f.repairs > 0 and util.chance(0.6) then
       f.intent = 'fix'
@@ -364,12 +420,34 @@ decideIntent = function()
     end
     return
   end
-  if f.hp < f.max * 0.35 and f.repairs > 0 and util.chance(0.8) then
-    f.intent = 'fix'
-  elseif util.chance(0.18) then
-    f.intent = 'move'
-  else
+
+  -- Foe class AI personalities:
+  if f.class == 'sloop' then
+    if f.hp < f.max * 0.35 and f.repairs > 0 and util.chance(0.8) then
+      f.intent = 'fix'
+    elseif util.chance(0.35) then
+      f.intent = 'move'
+    else
+      f.intent = 'fire'
+    end
+  elseif f.class == 'manowar' then
+    if f.hp < f.max * 0.35 and f.repairs > 0 and util.chance(0.8) then
+      f.intent = 'fix'
+    elseif f.bigshotKegs > 0 and util.chance(0.5) then
+      f.intent = 'bigshot'
+    else
+      f.intent = 'fire'
+    end
+  elseif f.class == 'fireship' then
     f.intent = 'fire'
+  else -- brig or default
+    if f.hp < f.max * 0.35 and f.repairs > 0 and util.chance(0.8) then
+      f.intent = 'fix'
+    elseif util.chance(0.18) then
+      f.intent = 'move'
+    else
+      f.intent = 'fire'
+    end
   end
 end
 
@@ -393,6 +471,22 @@ end
 -- Plain (non-yielding) state reset shared by the tail of every round's
 -- coroutine, solo or fleet.
 local function backToTurnLogic()
+  -- Player Ablaze Tick:
+  for i, sh in ipairs(sb.ships) do
+    if sh.ablaze and sh.ablaze > 0 then
+      sh.hp = math.max(0, sh.hp - 4)
+      local px, py = shipXY(i)
+      engine.addFloat(px + 16, py - 18, '-4 FIRE!', CO.orange, 1.5)
+      SFX.hit()
+      sh.ablaze = sh.ablaze - 1
+      if sh.hp <= 0 then
+        shipDown(i)
+        if sb.over then return end
+      end
+      wait(0.6)
+    end
+  end
+
   if sb.fleet then
     tickPatches()
     for _, sh in ipairs(sb.ships) do sh.chosen, sh.confirmOrder = nil, nil end
@@ -423,6 +517,13 @@ local function runFoeAct()
     engine.addParts(ex + 16, ey + 10, 10, CO.green, 30)
     engine.addFloat(ex + 16, ey - 22, 'FIXED!', CO.green, 1)
     wait(0.7)
+  elseif intent == 'douse' then
+    f.ablaze = nil
+    local ex, ey = shipXY('foe')
+    engine.addFloat(ex + 16, ey - 22, 'DOUSED!', CO.foam, 1)
+    sb.msg = "SHE DOUSE THE FLAMES!"
+    SFX.move()
+    wait(0.7)
   elseif intent == 'move' then
     local sh = sb.ships[target]
     sh.range = sh.range == 'NEAR' and 'FAR' or 'NEAR'
@@ -434,12 +535,18 @@ local function runFoeAct()
   elseif intent == 'bigshot' then
     f.bigshotKegs = math.max(0, f.bigshotKegs - 1)
     local dmg = sb.isBoss and 20 or (14 + lv)
+    if f.gunsStage < 0 then
+      dmg = math.max(1, dmg + f.gunsStage * 2)
+    end
     fireBall('foe', target, dmg, {})
     waitAnim()
     wait(0.6)
   elseif intent == 'volley' then
     f.volleyKegs = math.max(0, f.volleyKegs - 1)
     local dmg = 8 + lv
+    if f.gunsStage < 0 then
+      dmg = math.max(1, dmg + f.gunsStage)
+    end
     fireBall('foe', target, dmg, {})
     waitAnim()
     wait(0.3)
@@ -453,13 +560,16 @@ local function runFoeAct()
       local base = 3 + math.floor(lv / 2)
       if sh.range ~= 'NEAR' then base = base - 2 end
       dmg = base + util.irand(0, 2)
+      if f.gunsStage < 0 then
+        dmg = math.max(1, dmg + f.gunsStage * 2)
+      end
     else
-      local guns = f.guns or 1
-      local pwr = 7
+      local effectiveGuns = shipRules.getEffectiveStat(f.guns or 1, f.gunsStage)
+      local pwr = (f.class == 'fireship') and 5 or 7
       if sh.range == 'NEAR' then pwr = pwr + 2 end
-      dmg = pwr + guns + util.irand(0, 2)
+      dmg = pwr + effectiveGuns + util.irand(0, 2)
     end
-    fireBall('foe', target, dmg, {})
+    fireBall('foe', target, dmg, { isFireShot = (f.class == 'fireship') })
     waitAnim()
     wait(0.6)
   end
@@ -473,6 +583,32 @@ local function runFoeTurn()
   sb.turn = 'foe'
   sb.msg = "CAP'N " .. sb.foe.name .. "'S TURN..."
   wait(0.8)
+
+  if sb.foe.ablaze and sb.foe.ablaze > 0 then
+    sb.foe.hp = math.max(0, sb.foe.hp - 4)
+    local ex, ey = shipXY('foe')
+    engine.addFloat(ex + 16, ey - 18, '-4 FIRE!', CO.orange, 1.5)
+    SFX.hit()
+    if sb.foe.hp <= 0 then
+      sb.over = true
+      SFX.bigwin()
+      sb.msg = 'SHIP DISABLED!'
+      local isBoss = sb.isBoss
+      local foeRef = sb.foeRef
+      foeRef.gunsStage = sb.foe.gunsStage
+      foeRef.sailsStage = sb.foe.sailsStage
+      beginCo(function()
+        wait(1.3)
+        engine.transition('BOARD THE SHIP!', function()
+          if isBoss then personBattle.startBoss(foeRef) else personBattle.start(foeRef) end
+        end)
+      end)
+      return
+    end
+    sb.foe.ablaze = sb.foe.ablaze - 1
+    wait(0.8)
+  end
+
   runFoeAct()
 end
 
@@ -512,11 +648,11 @@ local function shipMenuItems(i)
   end
   local anySpec = #specialPartyFor(i) > 0
   local shotId = 'round'
-  local guns = sh.guns
+  local effectiveGuns = shipRules.getEffectiveStat(sh.guns, sh.gunsStage)
   local armor = sb.foe.armor or 0
   local isWeak = (sb.foe.weak == shotId)
   local isResisted = (sb.foe.armor > 0 and sb.foe.weak ~= shotId)
-  local minDmg, maxDmg = shipRules.getDamagePreview(shotId, sh.range, guns, armor, isWeak, isResisted)
+  local minDmg, maxDmg = shipRules.getDamagePreview(shotId, sh.range, effectiveGuns, armor, isWeak, isResisted)
   return {
     { id = 'fire', label = 'FIRE!', ok = true,
       desc = (sh.range == 'NEAR' and 'NEAR: ' or 'FAR: ') .. 'ROUND ' .. minDmg .. '-' .. maxDmg },
@@ -575,10 +711,13 @@ local function doShipAction(i, id)
     local ex, ey = shipXY(i)
     engine.addFloat(ex + 16, ey - 18, '+' .. heal, CO.green, 2)
     wait(0.7)
-  elseif id == 'fire' then
+  elseif id == 'fire' or id:sub(1, 5) == 'fire_' then
+    local shotId = (id == 'fire') and 'round' or id:sub(6)
+    if shotId ~= 'round' then
+      sh.powder[shotId] = math.max(0, sh.powder[shotId] - 1)
+    end
     local res = waitTiming(timing.cfg(sb.foe.lv, false, meta.steadyMult()), pressLabel('FIRE', fireOwner(i)), 'good', fireOwner(i))
-    local shotId = 'round'
-    local guns = sh.guns
+    local effectiveGuns = shipRules.getEffectiveStat(sh.guns, sh.gunsStage)
     local armor = sb.foe.armor or 0
     local isWeak = (sb.foe.weak == shotId)
     local isResisted = (sb.foe.armor > 0 and sb.foe.weak ~= shotId)
@@ -587,7 +726,7 @@ local function doShipAction(i, id)
     if sh.range == 'NEAR' then
       pwr = pwr + 2
     end
-    local baseDmg = pwr + guns - armor + util.irand(0, 2)
+    local baseDmg = pwr + effectiveGuns - armor + util.irand(0, 2)
     local dmg = baseDmg
     if res == 'perfect' then
       dmg = math.floor(dmg * 1.5)
@@ -606,7 +745,12 @@ local function doShipAction(i, id)
       mult = 0.75
     end
     dmg = math.max(0, math.floor(dmg * mult))
-    fireBall(i, 'foe', dmg, { isWeak = isWeak, isResisted = isResisted })
+    fireBall(i, 'foe', dmg, {
+      isWeak = isWeak,
+      isResisted = isResisted,
+      shotId = shotId,
+      res = res
+    })
     waitAnim()
   elseif id == 'move' then
     sh.range = sh.range == 'NEAR' and 'FAR' or 'NEAR'
@@ -722,7 +866,7 @@ local function updateSelect(dt)
   for i, sh in ipairs(sb.ships) do
     if not sh.chosen then
       local ctx = shipCtx(i)
-      if sh.subOpen then
+      if sh.subOpen == 'spec' or sh.subOpen == true then
         local plist = specialPartyFor(i)
         if #plist == 0 then
           sh.subOpen = false
@@ -742,6 +886,27 @@ local function updateSelect(dt)
             SFX.sel()
           end
         end
+      elseif sh.subOpen == 'fire' then
+        local shots = shipRules.getKnownShots()
+        sh.sub = math.min(sh.sub, #shots - 1)
+        if ctx.rp('up') then sh.sub = (sh.sub + #shots - 1) % #shots; SFX.move() end
+        if ctx.rp('down') then sh.sub = (sh.sub + 1) % #shots; SFX.move() end
+        if ctx.jp('b') then
+          sh.subOpen = false
+          SFX.back()
+        elseif ctx.jp('a') then
+          local shotId = shots[sh.sub + 1]
+          local ppPowder = sh.powder[shotId]
+          if ppPowder > 0 then
+            sh.subOpen = false
+            sh.chosen = 'fire_' .. shotId
+            sb.confirmSeq = sb.confirmSeq + 1
+            sh.confirmOrder = sb.confirmSeq
+            SFX.sel()
+          else
+            SFX.bump()
+          end
+        end
       else
         local items = shipMenuItems(i)
         sh.menu = math.min(sh.menu, #items - 1)
@@ -752,7 +917,10 @@ local function updateSelect(dt)
           if not it.ok then
             SFX.bump()
           elseif it.id == 'spec' then
-            sh.subOpen, sh.sub = true, 0
+            sh.subOpen, sh.sub = 'spec', 0
+            SFX.sel()
+          elseif it.id == 'fire' then
+            sh.subOpen, sh.sub = 'fire', 0
             SFX.sel()
           else
             SFX.sel()
@@ -834,7 +1002,7 @@ engine.states.shipBattle = {
 
     local ctx = input.p1
     local party = game.run.party
-    if sb.subOpen then
+    if sb.subOpen == 'spec' or sb.subOpen == true then
       if ctx.rp('up') then sb.sub = (sb.sub + #party - 1) % #party; SFX.move() end
       if ctx.rp('down') then sb.sub = (sb.sub + 1) % #party; SFX.move() end
       if ctx.jp('b') then
@@ -852,6 +1020,26 @@ engine.states.shipBattle = {
         else SFX.bump() end
       end
       return
+    elseif sb.subOpen == 'fire' then
+      local shots = shipRules.getKnownShots()
+      if ctx.rp('up') then sb.sub = (sb.sub + #shots - 1) % #shots; SFX.move() end
+      if ctx.rp('down') then sb.sub = (sb.sub + 1) % #shots; SFX.move() end
+      if ctx.jp('b') then
+        sb.subOpen = false
+        SFX.back()
+      elseif ctx.jp('a') then
+        local shotId = shots[sb.sub + 1]
+        local ppPowder = sb.ships[1].powder[shotId]
+        if ppPowder > 0 then
+          SFX.sel()
+          sb.subOpen = false
+          beginCo(function()
+            doShipAction(1, 'fire_' .. shotId)
+            runFoeTurn()
+          end)
+        else SFX.bump() end
+      end
+      return
     end
 
     local items = menuItems()
@@ -863,7 +1051,9 @@ engine.states.shipBattle = {
       if it.ok then
         SFX.sel()
         if it.id == 'spec' then
-          sb.subOpen, sb.sub = true, 0
+          sb.subOpen, sb.sub = 'spec', 0
+        elseif it.id == 'fire' then
+          sb.subOpen, sb.sub = 'fire', 0
         else
           beginCo(function()
             doShipAction(1, it.id)
@@ -895,7 +1085,8 @@ engine.states.shipBattle = {
     if sb.isBoss then
       sprites.draw('shipKing', fpx - 16, fpy + bobF - 16, true, 3)
     else
-      sprites.draw('shipE', fpx, fpy + bobF, true, 2)
+      local spriteName = 'ship' .. sb.foe.class:sub(1, 1):upper() .. sb.foe.class:sub(2)
+      sprites.draw(spriteName, fpx, fpy + bobF, true, 2)
     end
     if sb.foe.dodge > 0 then font.drawTextO('*', fpx + 14, fpy - 4 + bobF, CO.foam, 2) end
 
@@ -912,11 +1103,11 @@ engine.states.shipBattle = {
     -- same as always.
     local pickPhase = (sb.fleet and sb.turn == 'select') or (not sb.fleet and sb.turn == 'you')
     if pickPhase and not sb.over and sb.foe.intent then
-      local iconName = ({ fire = 'icon_fire', bigshot = 'icon_bigshot', volley = 'icon_volley', fix = 'icon_fix', move = 'icon_move' })[sb.foe.intent]
-      local intentCol = ({ fire = CO.orange, bigshot = CO.red, volley = CO.orange, fix = CO.green, move = CO.white })[sb.foe.intent]
-      local label = ({ fire = 'SHOT!', bigshot = 'BIG SHOT!', volley = 'DOUBLE SHOT!', fix = 'PATCHING!', move = 'MOVING!' })[sb.foe.intent]
+      local iconName = ({ fire = 'icon_fire', bigshot = 'icon_bigshot', volley = 'icon_volley', fix = 'icon_fix', move = 'icon_move', douse = 'icon_move' })[sb.foe.intent]
+      local intentCol = ({ fire = CO.orange, bigshot = CO.red, volley = CO.orange, fix = CO.green, move = CO.white, douse = CO.white })[sb.foe.intent]
+      local label = ({ fire = 'SHOT!', bigshot = 'BIG SHOT!', volley = 'DOUBLE SHOT!', fix = 'PATCHING!', move = 'MOVING!', douse = 'DOUSE FIRE!' })[sb.foe.intent]
       local tx, ty
-      if sb.fleet and sb.foe.intent ~= 'fix' then
+      if sb.fleet and sb.foe.intent ~= 'fix' and sb.foe.intent ~= 'douse' then
         tx, ty = shipXY(sb.foe.target)
       else
         tx, ty = fpx, fpy
@@ -957,6 +1148,24 @@ engine.states.shipBattle = {
         local spentW = string.rep('{', sh.maxRepairs - sh.repairs)
         font.drawText(activeW, 6, by + 15, CO.orange, 1)
         font.drawText(spentW, 6 + sh.repairs * 4, by + 15, CO.grayD, 1)
+
+        -- Stage arrows and status icons:
+        local hpText = sh.hp .. '/' .. sh.max
+        local hpW = font.textWidth(hpText, 1)
+        local px = 80 + hpW + 4
+        if sh.sailsStage < 0 then
+          local arrows = string.rep('[', -sh.sailsStage)
+          font.drawText(arrows, px, by + 7, CO.orange, 1)
+          px = px + font.textWidth(arrows, 1) + 2
+        end
+        if sh.gunsStage < 0 then
+          local arrows = string.rep('[', -sh.gunsStage)
+          font.drawText(arrows, px, by + 7, CO.red, 1)
+          px = px + font.textWidth(arrows, 1) + 2
+        end
+        if sh.ablaze and sh.ablaze > 0 then
+          font.drawText(']', px, by + 7, CO.orange, 1)
+        end
       end
     else
       font.drawText('YOUR SHIP', 6, 6, CO.white, 1)
@@ -967,8 +1176,37 @@ engine.states.shipBattle = {
       local spentW = string.rep('{', sb.ships[1].maxRepairs - sb.ships[1].repairs)
       font.drawText(activeW, 6, 21, CO.orange, 1)
       font.drawText(spentW, 6 + sb.ships[1].repairs * 4, 21, CO.grayD, 1)
+
+      -- Stage arrows and status icons for solo:
+      local hpText = sb.ships[1].hp .. '/' .. sb.ships[1].max
+      local hpW = font.textWidth(hpText, 1)
+      local px = 100 + hpW + 4
+      if sb.ships[1].sailsStage < 0 then
+        local arrows = string.rep('[', -sb.ships[1].sailsStage)
+        font.drawText(arrows, px, 13, CO.orange, 1)
+        px = px + font.textWidth(arrows, 1) + 2
+      end
+      if sb.ships[1].gunsStage < 0 then
+        local arrows = string.rep('[', -sb.ships[1].gunsStage)
+        font.drawText(arrows, px, 13, CO.red, 1)
+        px = px + font.textWidth(arrows, 1) + 2
+      end
+      if sb.ships[1].ablaze and sb.ships[1].ablaze > 0 then
+        font.drawText(']', px, 13, CO.orange, 1)
+      end
     end
-    font.drawText(sb.isBoss and sb.foe.name or ("CAP'N " .. sb.foe.name), VW - 6, 6, CO.white, 1, 'right')
+
+    -- Header text showing Capitain, Class and Weakness:
+    local headerText
+    if sb.isBoss then
+      headerText = sb.foe.name .. " - WEAK: " .. sb.foe.weak:upper()
+    else
+      local className = sb.foe.class:upper()
+      if className == 'MANOWAR' then className = 'MAN-O-WAR' end
+      headerText = "CAP'N " .. sb.foe.name .. " - " .. className .. " - WEAK: " .. sb.foe.weak:upper()
+    end
+    font.drawText(headerText, VW - 6, 6, CO.white, 1, 'right')
+
     ui.drawBar(VW - 96, 13, 90, 6, sb.foe.hp / sb.foe.max)
     local hpText = sb.foe.hp .. '/' .. sb.foe.max
     local hpW = font.textWidth(hpText, 1)
@@ -1002,6 +1240,32 @@ engine.states.shipBattle = {
       local spentBigshotW = (sb.foe.maxBigshotKegs - sb.foe.bigshotKegs) * 4
       font.drawText(bigshotActive, bx - spentBigshotW, 21, CO.red, 1, 'right')
     end
+
+    -- Foe stage arrows and status icons (aligned next to LV text):
+    local lvText = 'LV ' .. sb.foe.lv
+    local lvW = font.textWidth(lvText, 1)
+    local fx = VW - 102 - hpW - 6 - lvW - 6
+
+    local sailsArrows = (sb.foe.sailsStage < 0) and string.rep('[', -sb.foe.sailsStage) or ''
+    local gunsArrows = (sb.foe.gunsStage < 0) and string.rep('[', -sb.foe.gunsStage) or ''
+    local ablazeIcon = (sb.foe.ablaze and sb.foe.ablaze > 0) and ']' or ''
+
+    local curX = fx
+    if ablazeIcon ~= '' then
+      curX = curX - font.textWidth(ablazeIcon, 1)
+      font.drawText(ablazeIcon, curX, 13, CO.orange, 1)
+      curX = curX - 2
+    end
+    if gunsArrows ~= '' then
+      curX = curX - font.textWidth(gunsArrows, 1)
+      font.drawText(gunsArrows, curX, 13, CO.red, 1)
+      curX = curX - 2
+    end
+    if sailsArrows ~= '' then
+      curX = curX - font.textWidth(sailsArrows, 1)
+      font.drawText(sailsArrows, curX, 13, CO.orange, 1)
+    end
+
     if not sb.fleet then
       font.drawTextO(sb.ships[1].range == 'NEAR' and 'CLOSE!' or 'FAR', VW / 2, 26, CO.paper, 1, 'center')
     end
@@ -1019,7 +1283,7 @@ engine.states.shipBattle = {
           font.drawText((i == 1 and 'P1: ' or 'P2: ') .. (sh.range == 'NEAR' and 'CLOSE!' or 'FAR'), h.x, 153, h.col, 1)
           if sh.chosen then
             font.drawText('WAITING...', h.x, 163, CO.gray, 1)
-          elseif sh.subOpen then
+          elseif sh.subOpen == 'spec' or sh.subOpen == true then
             -- Only two rows fit above the canvas bottom; a window of two
             -- entries scrolls with the cursor instead of drawing past y=175.
             local plist = specialPartyFor(i)
@@ -1032,6 +1296,26 @@ engine.states.shipBattle = {
                 -- rides inline after the crew name instead.
                 font.drawText((pi == sh.sub and '>' or ' ') .. pp.name .. ' - ' .. data.ROLES[pp.role].ship.name,
                   h.x, 163 + row * 8, pi == sh.sub and h.col or CO.white, 1)
+              end
+            end
+          elseif sh.subOpen == 'fire' then
+            local shots = shipRules.getKnownShots()
+            local first = math.max(0, math.min(sh.sub - 1, #shots - 2))
+            for row = 0, 1 do
+              local pi = first + row
+              if pi <= #shots - 1 then
+                local shotId = shots[pi + 1]
+                local shotData = data.SHOTS[shotId]
+                local ppPowder = sh.powder[shotId]
+                local powderStr = (shotId == 'round') and 'oo' or tostring(ppPowder)
+                local effectiveGuns = shipRules.getEffectiveStat(sh.guns, sh.gunsStage)
+                local armor = sb.foe.armor or 0
+                local isWeak = (sb.foe.weak == shotId)
+                local isResisted = (sb.foe.armor > 0 and sb.foe.weak ~= shotId)
+                local minDmg, maxDmg = shipRules.getDamagePreview(shotId, sh.range, effectiveGuns, armor, isWeak, isResisted)
+                local col = (ppPowder <= 0) and CO.grayD or (pi == sh.sub and h.col or CO.white)
+                font.drawText((pi == sh.sub and '>' or ' ') .. shotData.label .. ' x' .. powderStr .. ' ' .. minDmg .. '-' .. maxDmg,
+                  h.x, 163 + row * 8, col, 1)
               end
             end
           else
@@ -1064,7 +1348,7 @@ engine.states.shipBattle = {
       end
       font.drawText(items[sb.menu + 1].desc, VW / 2, 171, CO.gray, 1, 'center')
 
-      if sb.subOpen then
+      if sb.subOpen == 'spec' or sb.subOpen == true then
         local party = game.run.party
         local n = #party
         local bw, bh = 170, n * 12 + 24
@@ -1081,6 +1365,43 @@ engine.states.shipBattle = {
             bx3 + 6, by3 + 14 + i * 12, col, 1)
         end
         font.drawText(data.ROLES[party[sb.sub + 1].role].ship.desc, bx3 + 6, by3 + bh - 10, CO.gray, 1)
+      elseif sb.subOpen == 'fire' then
+        local shots = shipRules.getKnownShots()
+        local n = #shots
+        local bw, bh = 170, n * 12 + 24
+        local bx3, by3 = (VW - bw) / 2, 132 - bh
+        gfx.setColor(CO.uiBg)
+        gfx.rectangle('fill', bx3, by3, bw, bh)
+        ui.outline(bx3, by3, bw, bh, CO.gold)
+        font.drawText('SELECT SHOT', bx3 + bw / 2, by3 + 4, CO.gold, 1, 'center')
+        for i = 0, n - 1 do
+          local shotId = shots[i + 1]
+          local shotData = data.SHOTS[shotId]
+          local sh = sb.ships[1]
+          local ppPowder = sh.powder[shotId]
+          local powderStr = (shotId == 'round') and 'oo' or tostring(ppPowder)
+
+          local effectiveGuns = shipRules.getEffectiveStat(sh.guns, sh.gunsStage)
+          local armor = sb.foe.armor or 0
+          local isWeak = (sb.foe.weak == shotId)
+          local isResisted = (sb.foe.armor > 0 and sb.foe.weak ~= shotId)
+          local minDmg, maxDmg = shipRules.getDamagePreview(shotId, sh.range, effectiveGuns, armor, isWeak, isResisted)
+
+          local label = shotData.label .. ' x' .. powderStr
+          local col = (ppPowder <= 0) and CO.grayD or (i == sb.sub and CO.gold or CO.white)
+          font.drawText((i == sb.sub and '>' or ' ') .. label, bx3 + 6, by3 + 14 + i * 12, col, 1)
+
+          local prevText = minDmg .. '-' .. maxDmg
+          font.drawText(prevText, bx3 + bw - 6, by3 + 14 + i * 12, col, 1, 'right')
+        end
+        local curShotId = shots[sb.sub + 1]
+        local desc = ({
+          round = 'PLAIN HULL DAMAGE',
+          chain = 'FOE SAILS -1 (CANCELS MOVE)',
+          grape = 'FOE GUNS -1 (BOARDING SETUP)',
+          fire  = 'ABLAZE: 4 DMG/TURN',
+        })[curShotId] or ''
+        font.drawText(desc, bx3 + 6, by3 + bh - 10, CO.gray, 1)
       end
     end
     timing.draw()

@@ -17,14 +17,14 @@ end
 -- battle. Purely a bonus — never a requirement.
 function M.broadsideReady(ships, used)
   return not used and #ships == 2
-    and ships[1].chosen == 'fire' and ships[2].chosen == 'fire'
+    and ships[1].chosen == 'fire_round' and ships[2].chosen == 'fire_round'
     and ships[1].range == 'NEAR' and ships[2].range == 'NEAR'
 end
 
 -- Kind auto-choice for an idle-collapsed captain: keep patching if downed,
 -- otherwise fire.
 function M.autoChoice(ship)
-  return ship.patched and 'patch' or 'fire'
+  return ship.patched and 'patch' or 'fire_round'
 end
 
 function M.allChosen(ships)

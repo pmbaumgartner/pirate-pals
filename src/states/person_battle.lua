@@ -419,6 +419,15 @@ function M.start(foe, compOverride, deckOverride)
       acted = false, guard = false, buff = 0, alive = true,
     }
   end
+  -- Apply Grape Shot deck sweep effect:
+  if foe.gunsStage and foe.gunsStage < 0 then
+    for _, u in ipairs(units) do
+      if u.side == 'e' then
+        u.hp = math.max(1, math.floor(u.max / 2))
+        break
+      end
+    end
+  end
   for i, u in ipairs(units) do u.id = i end
   local crates = model.scatterCrates(deckInfo)
   -- Story hook: the first-ever battle on a
@@ -483,6 +492,29 @@ function M.startBoss(foe)
       atk = er.atk + er.atkLv * (lv - 1), move = er.move, range = er.range,
       acted = false, guard = false, buff = 0, alive = true,
     }
+  end
+  -- Apply Grape Shot deck sweep effect:
+  if foe.gunsStage and foe.gunsStage < 0 then
+    local targetUnit
+    for _, u in ipairs(units) do
+      if u.side == 'e' then
+        if not u.boss then
+          targetUnit = u
+          break
+        end
+      end
+    end
+    if not targetUnit then
+      for _, u in ipairs(units) do
+        if u.side == 'e' then
+          targetUnit = u
+          break
+        end
+      end
+    end
+    if targetUnit then
+      targetUnit.hp = math.max(1, math.floor(targetUnit.max / 2))
+    end
   end
   for i, u in ipairs(units) do u.id = i end
   local crates = model.scatterCrates(deckInfo)
