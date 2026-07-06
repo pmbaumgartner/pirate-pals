@@ -11,9 +11,9 @@ love = {
   },
 }
 
-local data = require 'src.data'
+require 'src.data'
 local game = require 'src.game'
-local shipRules = require 'src.ship_rules'
+require 'src.ship_rules'
 
 local fails = 0
 local function ok(cond, msg)

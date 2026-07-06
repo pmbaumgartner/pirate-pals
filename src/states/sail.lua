@@ -238,10 +238,14 @@ engine.states.sail = {
     -- Labels near landmarks.
     if run.sea.port and grid.hexDistance(sh.x, sh.y, run.sea.port.x, run.sea.port.y) <= 2 then
       local cx, cy = hexCenter(run.sea.port.x, run.sea.port.y)
+      local w = font.textWidth('TAILOR', 1)
+      cx = util.clamp(cx, w / 2 + 2, VW - w / 2 - 2)
       font.drawTextO('TAILOR', cx, cy - 15, CO.paper, 1, 'center')
     end
     if run.sea.exit and grid.hexDistance(sh.x, sh.y, run.sea.exit.x, run.sea.exit.y) <= 3 then
       local cx, cy = hexCenter(run.sea.exit.x, run.sea.exit.y)
+      local w = font.textWidth('NEXT SEA', 1)
+      cx = util.clamp(cx, w / 2 + 2, VW - w / 2 - 2)
       font.drawTextO('NEXT SEA', cx, cy - 15, CO.foam, 1, 'center')
     end
 
@@ -254,10 +258,15 @@ engine.states.sail = {
         font.drawTextO('?', px + 8, py + bobE, CO.paper, 1, 'center')
       elseif e.boss then
         sprites.draw('shipKing', px - 4, py + bobE - 4, e.fx > sh.fx, 1.5)
-        font.drawTextO('THE KING', px + 8, py - 10, CO.red, 1, 'center')
+        local w = font.textWidth('THE KING', 1)
+        local labelX = util.clamp(px + 8, w / 2 + 2, VW - w / 2 - 2)
+        font.drawTextO('THE KING', labelX, py - 10, CO.red, 1, 'center')
       else
         sprites.draw('shipE', px, py + bobE, e.fx > sh.fx)
-        font.drawTextO('LV ' .. e.lv, px + 8, py - 10, CO.gold, 1, 'center')
+        local label = 'LV ' .. e.lv
+        local w = font.textWidth(label, 1)
+        local labelX = util.clamp(px + 8, w / 2 + 2, VW - w / 2 - 2)
+        font.drawTextO(label, labelX, py - 10, CO.gold, 1, 'center')
       end
     end
 
