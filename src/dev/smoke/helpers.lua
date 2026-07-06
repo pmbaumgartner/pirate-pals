@@ -80,5 +80,58 @@ return function(ctx)
     waitUntil(function() return not engine.trans.on end, 5)
   end
 
+  -- landTiming variants with a forced grade. Under the script's fixed dt the
+  -- marker steps ~1% of the bar per tick, so waiting for a specific offset
+  -- band then tapping is deterministic (one tick of press latency, ~0.013 of
+  -- the bar, is budgeted into each band's margins).
+  local function landInBand(pred, owner)
+    waitUntil(function() return timing.on end, 5)
+    waitUntil(function() return not timing.on or pred() end, 30)
+    if timing.on then
+      if owner == 'p2' then tap2('a') else tap('z') end
+    end
+    waitUntil(function() return not timing.on end, 20)
+  end
+
+  function h.landTimingPerfect(owner)
+    landInBand(function()
+      return math.abs(timing.posAt(timing.t, timing.dur) - 0.5)
+        <= math.max(0.005, timing.perf / 2 - 0.02)
+    end, owner)
+  end
+
+  -- Lands in the miss band but under the anti-mash threshold (good*1.5), so
+  -- the press resolves 'miss' instead of a TOO SOON lockout.
+  function h.landTimingMiss(owner)
+    landInBand(function()
+      local off = math.abs(timing.posAt(timing.t, timing.dur) - 0.5)
+      return off >= timing.good / 2 + 0.08 and off <= timing.good * 1.5 - 0.12
+    end, owner)
+  end
+
+  -- Advances every loot card until the run is back on sail, recording card
+  -- types in `seen` (optional). blueprint_choice picks the SECOND option so
+  -- the pick logic (not just the default) executes.
+  function h.walkLoot(seen)
+    local loot, wait = h.loot, ctx.wait
+    waitUntil(function() return engine.cur == 'loot' end, 10)
+    h.settle()
+    for _ = 1, 30 do
+      if engine.cur ~= 'loot' then break end
+      local L = loot.loot
+      local part = L and L.parts[L.i + 1]
+      if part then
+        if seen then seen[part.type] = true end
+        if part.type == 'blueprint_choice' and #part.options > 1 then
+          tap('right')
+          wait(0.15)
+        end
+      end
+      tap('z')
+      wait(0.35)
+    end
+    waitUntil(function() return engine.cur == 'sail' and not engine.trans.on end, 10)
+  end
+
   return h
 end

@@ -186,12 +186,32 @@ return function(ctx, h)
   shot('captains-boarding')
 
   -- Solo-collapse auto-act: a long-idle P2's pals act on their own so
-  -- the fight never stalls on an empty chair.
+  -- the fight never stalls on an empty chair. Park a foe adjacent to a P2
+  -- pal first so the auto-act strike path (not just the walk) executes.
   tap('x')
   wait(0.2)
   expect(pbT.pl.p1.sel == nil, 'P1 back did not clear their selection')
+  local p2pal, autoFoe
+  for _, u in ipairs(pbT.units) do
+    if not p2pal and u.side == 'p' and u.alive and not u.acted and (u.owner or 'p1') == 'p2' then
+      p2pal = u
+    end
+    if not autoFoe and u.side == 'e' and u.alive then autoFoe = u end
+  end
+  expect(p2pal and autoFoe, 'no idle P2 pal + live foe to stage the auto-act strike')
+  local pbModelT = require 'src.states.person_battle.model'
+  for _, d in ipairs({ { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 } }) do
+    local nx, ny = p2pal.x + d[1], p2pal.y + d[2]
+    if pbModelT.inDeck(nx, ny) and not pbModelT.unitAt(nx, ny)
+      and not pbT.crates[grid.gk(nx, ny)] then
+      autoFoe.x, autoFoe.y, autoFoe.fx, autoFoe.fy = nx, ny, nx, ny
+      break
+    end
+  end
+  local autoFoeHp = autoFoe.hp
   pbT.idleT = 999
   wait(8)
+  expect(not autoFoe.alive or autoFoe.hp < autoFoeHp, 'idle-P2 auto-act never landed a strike')
   expect(pbT.p2Auto, 'long P2 idle did not latch p2Auto')
   local p2Acted = 0
   for _, u in ipairs(pbT.units) do

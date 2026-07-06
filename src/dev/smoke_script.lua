@@ -25,7 +25,10 @@ for _, name in ipairs({
   'boss_victory_port',
   'captains',
   'ship_loss_dock',
+  'boarding_real',
+  'sail_triggers',
   'save_roundtrip',
+  'colorselect_launch',
 }) do
   require('src.dev.smoke.' .. name)(ctx, h)
 end

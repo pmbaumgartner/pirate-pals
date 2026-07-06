@@ -3,6 +3,6 @@
 -- and unit-test ('./src/x.lua') chunk names match.
 return {
   include = { '^main$', 'src/' },
-  exclude = { 'src/lib/' },
+  exclude = { 'src/lib/', 'src/dev/' },
   runreport = true,
 }

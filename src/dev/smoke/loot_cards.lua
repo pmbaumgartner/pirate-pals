@@ -67,4 +67,43 @@ return function(ctx, h)
   expect(game.isNapping(sleepy), 'isNapping should be true right after napping')
   game.genSea(game.run.sea.lv)
   expect(not game.isNapping(sleepy), 'nap should clear after entering a new sea')
+
+  -- Draw-only cards: salvage bag, treasure map bottle, blueprint pickup, an
+  -- outfit unlock, and the roaming gossip lore card -- none of these take
+  -- input beyond advancing.
+  loot.start({
+    { type = 'salvage', material = 'timber', n = 2 },
+    { type = 'bottle', sea = 5 },
+    { type = 'blueprint_single', id = 'grape' },
+    { type = 'unlock', id = 'bandR' },
+    { type = 'gossip' },
+  }, 'TEST DRAW')
+  h.settle()
+  shot('loot-cards-2')
+  for _ = 1, 5 do
+    tap('z')
+    wait(0.35)
+  end
+  waitUntil(function() return engine.cur == 'sail' end, 5)
+
+  -- Trade SELL: the mirror of sea_biomes.lua's trade-buy branch. Selecting
+  -- option 2 sells a held treasure for gold instead of buying one.
+  game.run.treas.coin = 2
+  local goldBefore = game.run.gold
+  loot.start({
+    { type = 'trade', choice = 1, options = {
+      { id = 'buy', name = 'GET A SHINY', desc = 'PAY 15 GOLD', ok = true },
+      { id = 'sell', name = 'SWAP A SPARE', desc = 'GET 25 GOLD', ok = true, tid = 'coin' },
+    } },
+  }, 'TEST TRADE SELL')
+  h.settle()
+  tap('right')
+  wait(0.15)
+  tap('z')
+  wait(0.3)
+  expect(game.run.gold == goldBefore + 25, 'trade sell did not award 25 gold')
+  expect(game.run.treas.coin == 1, 'trade sell did not deduct the sold treasure')
+  tap('z') -- the inserted gold card
+  wait(0.3)
+  waitUntil(function() return engine.cur == 'sail' end, 5)
 end
