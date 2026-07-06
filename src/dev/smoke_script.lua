@@ -403,6 +403,7 @@ shipBattle.start(game.run.sea.enemies[1])
 expect(engine.cur == 'shipBattle', 'boss shipBattle.start did not switch state')
 expect(shipBattle.sb.isBoss, 'expected isBoss on the boss ship battle')
 wait(2.5)
+shot('boss-ship')
 
 personBattle.startBoss(game.run.sea.enemies[1])
 expect(engine.cur == 'personBattle', 'personBattle.startBoss did not switch state')

@@ -68,14 +68,20 @@ function M.start(foe)
   local lv = game.scaleLv(foe.lv)
   local isBoss = foe.boss == true
   local fleet = game.run.mode == 'captains'
-  local foeHp = isBoss and (foe.kraken and 190 or 150) or (18 + 7 * lv)
-  local foeRepairs = 2
+  local foeHp = isBoss and (foe.kraken and 190 or 96) or (18 + 7 * lv)
+  local foeRepairs = isBoss and (foe.kraken and 2 or 1) or 2
+  local bigshotKegs = 0
+  local volleyKegs = 0
+  if isBoss then
+    bigshotKegs = fleet and 4 or 3
+    volleyKegs = 2
+  end
   -- Fleet battles land ~2x player actions per round (two captains firing
   -- instead of one); scale the foe up here, in the one place, rather than
   -- scattering an extra multiplier through decideIntent/impact.
   if fleet then
     foeHp = math.floor(foeHp * 1.6)
-    foeRepairs = 3
+    foeRepairs = isBoss and (foe.kraken and 3 or 2) or 3
   end
   -- Volcano dents (4.1): rock hits on the sail map lower the starting bar
   -- for the next battle only (capped at 9, so never close to a sink), then
@@ -91,7 +97,7 @@ function M.start(foe)
   local shipMax = meta.shipMaxHp()
   local ships = {
     {
-      hp = shipMax - hurt, max = shipMax, repairs = 3,
+      hp = shipMax - hurt, max = shipMax, repairs = 3, maxRepairs = 3,
       dodge = meta.hasFreeDodge() and 1 or 0,
       range = 'FAR', pt = 0, owner = 'p1',
       menu = 0, subOpen = false, sub = 0, chosen = nil, confirmOrder = nil,
@@ -100,7 +106,7 @@ function M.start(foe)
   }
   if fleet then
     ships[2] = {
-      hp = shipMax, max = shipMax, repairs = 3, dodge = 0,
+      hp = shipMax, max = shipMax, repairs = 3, maxRepairs = 3, dodge = 0,
       range = 'FAR', pt = 0, owner = 'p2',
       menu = 0, subOpen = false, sub = 0, chosen = nil, confirmOrder = nil,
       patched = false, patchRounds = 0,
@@ -110,7 +116,13 @@ function M.start(foe)
     foeRef = foe,
     isBoss = isBoss,
     fleet = fleet,
-    foe = { hp = foeHp, max = foeHp, name = foe.name, lv = lv, repairs = foeRepairs, dodge = 0, intent = nil, target = 1 },
+    foe = {
+      hp = foeHp, max = foeHp, name = foe.name, lv = lv,
+      repairs = foeRepairs, maxRepairs = foeRepairs,
+      dodge = 0, intent = nil, target = 1,
+      bigshotKegs = bigshotKegs, maxBigshotKegs = bigshotKegs,
+      volleyKegs = volleyKegs, maxVolleyKegs = volleyKegs
+    },
     ships = ships,
     turn = fleet and 'select' or 'you',
     menu = 0, subOpen = false, sub = 0,
@@ -298,9 +310,9 @@ decideIntent = function()
       f.intent = 'fix'
     -- New Voyage+ tier 2 wrinkle: the King learns VOLLEY, a telegraphed
     -- back-to-back double shot (still just MOVE-dodgeable, like FIRE).
-    elseif (meta.data.tier or 0) >= 2 and util.chance(0.25) then
+    elseif (meta.data.tier or 0) >= 2 and f.volleyKegs > 0 and util.chance(0.25) then
       f.intent = 'volley'
-    elseif util.chance(0.35) then
+    elseif f.bigshotKegs > 0 and util.chance(0.35) then
       f.intent = 'bigshot'
     else
       f.intent = 'fire'
@@ -324,10 +336,10 @@ local function tickPatches()
       sh.patchRounds = sh.patchRounds - 1
       sh.hp = math.min(sh.max, sh.hp + math.floor(sh.max * 0.25))
       if sh.patchRounds <= 0 then
-        sh.patched = false
-        sh.hp = math.max(sh.hp, math.floor(sh.max * 0.4))
-        local ex, ey = shipXY(i)
-        engine.addFloat(ex + 16, ey - 18, 'BACK IN THE FIGHT!', CO.green, 2)
+         sh.patched = false
+         sh.hp = math.max(sh.hp, math.floor(sh.max * 0.4))
+         local ex, ey = shipXY(i)
+         engine.addFloat(ex + 16, ey - 18, 'BACK IN THE FIGHT!', CO.green, 2)
       end
     end
   end
@@ -375,11 +387,13 @@ local function runFoeAct()
     SFX.move()
     wait(0.7)
   elseif intent == 'bigshot' then
-    local dmg = 14 + lv
+    f.bigshotKegs = math.max(0, f.bigshotKegs - 1)
+    local dmg = sb.isBoss and 20 or (14 + lv)
     fireBall('foe', target, dmg, {})
     waitAnim()
     wait(0.6)
   elseif intent == 'volley' then
+    f.volleyKegs = math.max(0, f.volleyKegs - 1)
     local dmg = 8 + lv
     fireBall('foe', target, dmg, {})
     waitAnim()
@@ -389,7 +403,14 @@ local function runFoeAct()
     wait(0.6)
   else
     local sh = sb.ships[target]
-    local dmg = sh.range == 'NEAR' and (4 + lv + util.irand(0, 3)) or (2 + lv + util.irand(0, 2))
+    local dmg
+    if sb.isBoss then
+      local base = 3 + math.floor(lv / 2)
+      if sh.range ~= 'NEAR' then base = base - 2 end
+      dmg = base + util.irand(0, 2)
+    else
+      dmg = sh.range == 'NEAR' and (4 + lv + util.irand(0, 3)) or (2 + lv + util.irand(0, 2))
+    end
     fireBall('foe', target, dmg, {})
     waitAnim()
     wait(0.6)
@@ -844,15 +865,56 @@ engine.states.shipBattle = {
         font.drawText((i == 1 and 'P1 SHIP' or 'P2 SHIP') .. (sh.patched and ' (PATCHING)' or ''), 6, by, col, 1)
         ui.drawBar(6, by + 7, 70, 6, sh.hp / sh.max)
         font.drawText(sh.hp .. '/' .. sh.max, 80, by + 7, CO.white, 1)
+        -- Draw repair pips for fleet player ships:
+        local activeW = string.rep('{', sh.repairs)
+        local spentW = string.rep('{', sh.maxRepairs - sh.repairs)
+        font.drawText(activeW, 6, by + 15, CO.orange, 1)
+        font.drawText(spentW, 6 + sh.repairs * 4, by + 15, CO.grayD, 1)
       end
     else
       font.drawText('YOUR SHIP', 6, 6, CO.white, 1)
       ui.drawBar(6, 13, 90, 6, sb.ships[1].hp / sb.ships[1].max)
       font.drawText(sb.ships[1].hp .. '/' .. sb.ships[1].max, 100, 13, CO.white, 1)
+      -- Draw repair pips for solo player ship:
+      local activeW = string.rep('{', sb.ships[1].repairs)
+      local spentW = string.rep('{', sb.ships[1].maxRepairs - sb.ships[1].repairs)
+      font.drawText(activeW, 6, 21, CO.orange, 1)
+      font.drawText(spentW, 6 + sb.ships[1].repairs * 4, 21, CO.grayD, 1)
     end
     font.drawText(sb.isBoss and sb.foe.name or ("CAP'N " .. sb.foe.name), VW - 6, 6, CO.white, 1, 'right')
     ui.drawBar(VW - 96, 13, 90, 6, sb.foe.hp / sb.foe.max)
-    font.drawText('LV ' .. sb.foe.lv, VW - 102, 13, CO.red, 1, 'right')
+    local hpText = sb.foe.hp .. '/' .. sb.foe.max
+    local hpW = font.textWidth(hpText, 1)
+    font.drawText(hpText, VW - 102, 13, CO.white, 1, 'right')
+    font.drawText('LV ' .. sb.foe.lv, VW - 102 - hpW - 6, 13, CO.red, 1, 'right')
+
+    -- Draw foe repair pips under the bar:
+    local foeActiveW = string.rep('{', sb.foe.repairs)
+    local foeSpentW = string.rep('{', sb.foe.maxRepairs - sb.foe.repairs)
+    font.drawText(foeSpentW, VW - 6, 21, CO.grayD, 1, 'right')
+    local spentWidth = (sb.foe.maxRepairs - sb.foe.repairs) * 4
+    font.drawText(foeActiveW, VW - 6 - spentWidth, 21, CO.orange, 1, 'right')
+
+    -- Draw boss powder-keg pips if boss:
+    if sb.isBoss then
+      local volleyActive = string.rep('}', sb.foe.volleyKegs)
+      local volleySpent = string.rep('}', sb.foe.maxVolleyKegs - sb.foe.volleyKegs)
+      local bigshotActive = string.rep('}', sb.foe.bigshotKegs)
+      local bigshotSpent = string.rep('}', sb.foe.maxBigshotKegs - sb.foe.bigshotKegs)
+
+      local rx = VW - 6 - sb.foe.maxRepairs * 4 - 6
+
+      font.drawText(volleySpent, rx, 21, CO.grayD, 1, 'right')
+      local spentVolleyW = (sb.foe.maxVolleyKegs - sb.foe.volleyKegs) * 4
+      font.drawText(volleyActive, rx - spentVolleyW, 21, CO.orange, 1, 'right')
+
+      local totalVolleyW = sb.foe.maxVolleyKegs * 4
+      local bx = rx - totalVolleyW - 4
+
+      font.drawText(bigshotSpent, bx, 21, CO.grayD, 1, 'right')
+      local spentBigshotW = (sb.foe.maxBigshotKegs - sb.foe.bigshotKegs) * 4
+      font.drawText(bigshotActive, bx - spentBigshotW, 21, CO.red, 1, 'right')
+    end
     if not sb.fleet then
       font.drawTextO(sb.ships[1].range == 'NEAR' and 'CLOSE!' or 'FAR', VW / 2, 26, CO.paper, 1, 'center')
     end
