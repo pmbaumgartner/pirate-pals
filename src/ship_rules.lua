@@ -130,4 +130,29 @@ function M.getEnemyClassStats(className, level)
   }
 end
 
+-- Calculates the effective stat after applying a stage modifier.
+-- We clamp the stage to [-2, 0] since it's debuff-only and max debuff is -2.
+function M.clampStage(stage)
+  return math.max(-2, math.min(0, stage or 0))
+end
+
+function M.getEffectiveStat(baseStat, stage)
+  local clamped = M.clampStage(stage)
+  return math.max(0, baseStat + clamped)
+end
+
+-- Calculates the dodge chance for a ship using its sails stat and sails stage.
+-- sails: the SAILS stat (e.g. 1 + tier for player).
+-- stage: the stage debuff (0, -1, -2).
+-- isBigThreat: boolean, true if dodging a telegraphed bigshot (guaranteed 100% dodge)
+function M.getDodgeChance(sails, stage, isBigThreat)
+  if isBigThreat then return 1 end
+  local effectiveSails = M.getEffectiveStat(sails, stage)
+  -- sails = 1 + tier, so tier = sails - 1.
+  local tier = math.max(0, effectiveSails - 1)
+  return 0.4 + tier * 0.15
+end
+
 return M
+
+

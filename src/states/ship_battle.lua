@@ -36,6 +36,7 @@ local fleetRound = require 'src.fleet'
 local coop = require 'src.coop'
 local timing = require 'src.timing'
 local personBattle = require 'src.states.person_battle'
+local shipRules = require 'src.ship_rules'
 local CO = palette.CO
 local gfx = love.graphics
 local SFX = audio.sfx
@@ -68,7 +69,30 @@ function M.start(foe)
   local lv = game.scaleLv(foe.lv)
   local isBoss = foe.boss == true
   local fleet = game.run.mode == 'captains'
-  local foeHp = isBoss and (foe.kraken and 190 or 96) or (18 + 7 * lv)
+  local foeClass = foe.class or (isBoss and (foe.kraken and 'kraken' or 'king') or 'brig')
+  local foeGuns, foeSails, foeArmor, foeWeak, foeMaxHp
+  if isBoss then
+    foeMaxHp = foe.kraken and 190 or 96
+    if foe.kraken then
+      foeGuns = 3
+      foeSails = 1
+      foeArmor = 0
+      foeWeak = 'chain'
+    else
+      foeGuns = 3
+      foeSails = 1
+      foeArmor = 1
+      foeWeak = 'fire'
+    end
+  else
+    local cStats = shipRules.getEnemyClassStats(foeClass, lv)
+    foeMaxHp = cStats.maxHp
+    foeGuns = cStats.guns
+    foeSails = cStats.sails
+    foeArmor = cStats.armor
+    foeWeak = cStats.weak
+  end
+  local foeHp = foeMaxHp
   local foeRepairs = isBoss and (foe.kraken and 2 or 1) or 2
   local bigshotKegs = 0
   local volleyKegs = 0
@@ -94,22 +118,29 @@ function M.start(foe)
   -- FIGUREHEAD raises max ship HP; BETTER SAILS grants one free auto-dodge
   -- per battle (reuses the existing dodge-chance field, guaranteed at 1 —
   -- the first incoming hit rolls against it and is consumed like any dodge).
-  local shipMax = meta.shipMaxHp()
+  local shipMax1 = shipRules.getPlayerHullMax(1)
+  local shipMax2 = fleet and shipRules.getPlayerHullMax(2) or 30
   local ships = {
     {
-      hp = shipMax - hurt, max = shipMax, repairs = 3, maxRepairs = 3,
+      hp = shipMax1 - hurt, max = shipMax1, repairs = 3, maxRepairs = 3,
       dodge = meta.hasFreeDodge() and 1 or 0,
       range = 'FAR', pt = 0, owner = 'p1',
       menu = 0, subOpen = false, sub = 0, chosen = nil, confirmOrder = nil,
       patched = false, patchRounds = 0,
+      guns = shipRules.getPlayerGuns(1),
+      sails = shipRules.getPlayerSails(1),
+      gunsStage = 0, sailsStage = 0,
     },
   }
   if fleet then
     ships[2] = {
-      hp = shipMax, max = shipMax, repairs = 3, maxRepairs = 3, dodge = 0,
+      hp = shipMax2, max = shipMax2, repairs = 3, maxRepairs = 3, dodge = 0,
       range = 'FAR', pt = 0, owner = 'p2',
       menu = 0, subOpen = false, sub = 0, chosen = nil, confirmOrder = nil,
       patched = false, patchRounds = 0,
+      guns = shipRules.getPlayerGuns(2),
+      sails = shipRules.getPlayerSails(2),
+      gunsStage = 0, sailsStage = 0,
     }
   end
   sb = {
@@ -121,7 +152,14 @@ function M.start(foe)
       repairs = foeRepairs, maxRepairs = foeRepairs,
       dodge = 0, intent = nil, target = 1,
       bigshotKegs = bigshotKegs, maxBigshotKegs = bigshotKegs,
-      volleyKegs = volleyKegs, maxVolleyKegs = volleyKegs
+      volleyKegs = volleyKegs, maxVolleyKegs = volleyKegs,
+      guns = foeGuns,
+      sails = foeSails,
+      armor = foeArmor,
+      weak = foeWeak,
+      class = foeClass,
+      gunsStage = 0,
+      sailsStage = 0,
     },
     ships = ships,
     turn = fleet and 'select' or 'you',
@@ -232,6 +270,13 @@ impact = function(who, dmg, opts)
     engine.addParts(ex + 16, ey + 14, 8, util.pick({ CO.red, CO.gold, CO.green, CO.purple, CO.foam }), 55)
   end
   engine.addFloat(ex + 16, ey, '-' .. dmg, who ~= 'foe' and CO.red or CO.gold, 2)
+  if who == 'foe' then
+    if opts.isWeak then
+      engine.addFloat(ex + 16, ey - 14, 'IT TEARS THROUGH!', CO.gold, 1.2)
+    elseif opts.isResisted then
+      engine.addFloat(ex + 16, ey - 14, 'IT GLANCES OFF...', CO.gray, 1.2)
+    end
+  end
   if tgt.hp <= 0 then
     if who == 'foe' then
       sb.over = true
@@ -381,7 +426,7 @@ local function runFoeAct()
   elseif intent == 'move' then
     local sh = sb.ships[target]
     sh.range = sh.range == 'NEAR' and 'FAR' or 'NEAR'
-    f.dodge = 0.5
+    f.dodge = shipRules.getDodgeChance(f.sails, f.sailsStage, false)
     local ex, ey = shipXY('foe')
     engine.addFloat(ex + 16, ey - 22, 'REPOSITION!', CO.foam, 1)
     SFX.move()
@@ -409,7 +454,10 @@ local function runFoeAct()
       if sh.range ~= 'NEAR' then base = base - 2 end
       dmg = base + util.irand(0, 2)
     else
-      dmg = sh.range == 'NEAR' and (4 + lv + util.irand(0, 3)) or (2 + lv + util.irand(0, 2))
+      local guns = f.guns or 1
+      local pwr = 7
+      if sh.range == 'NEAR' then pwr = pwr + 2 end
+      dmg = pwr + guns + util.irand(0, 2)
     end
     fireBall('foe', target, dmg, {})
     waitAnim()
@@ -435,19 +483,6 @@ end
 -- submenu.
 --------------------------------------------------------------------------
 
-local function capLvl()
-  local c = game.partyHas('captain')
-  return c and c.lvl or 1
-end
-
-local function capLvlFor(i)
-  if not sb.fleet then return capLvl() end
-  local owner = sb.ships[i].owner
-  for _, p in ipairs(game.run.party) do
-    if p.role == 'captain' and game.ownerOf(p) == owner then return p.lvl end
-  end
-  return 1
-end
 
 -- FIRE's timing bar is driven by each fleet ship's own captain; solo has
 -- no second player to gate on.
@@ -476,9 +511,15 @@ local function shipMenuItems(i)
     return { { id = 'patch', label = 'PATCH!', ok = true, desc = "HOLD ON, WE'RE FIXING HER!" } }
   end
   local anySpec = #specialPartyFor(i) > 0
+  local shotId = 'round'
+  local guns = sh.guns
+  local armor = sb.foe.armor or 0
+  local isWeak = (sb.foe.weak == shotId)
+  local isResisted = (sb.foe.armor > 0 and sb.foe.weak ~= shotId)
+  local minDmg, maxDmg = shipRules.getDamagePreview(shotId, sh.range, guns, armor, isWeak, isResisted)
   return {
     { id = 'fire', label = 'FIRE!', ok = true,
-      desc = sh.range == 'NEAR' and 'BIG BOOM UP CLOSE!' or 'SAFE SHOT FROM AFAR' },
+      desc = (sh.range == 'NEAR' and 'NEAR: ' or 'FAR: ') .. 'ROUND ' .. minDmg .. '-' .. maxDmg },
     { id = 'move', label = 'MOVE', ok = true,
       desc = (sb.isBoss and sb.foe.intent == 'bigshot' and sb.foe.target == i) and 'DODGE THE BIG SHOT!'
         or ((sh.range == 'NEAR' and 'SAIL AWAY' or 'SAIL CLOSER') .. ' + DODGE!') },
@@ -536,23 +577,41 @@ local function doShipAction(i, id)
     wait(0.7)
   elseif id == 'fire' then
     local res = waitTiming(timing.cfg(sb.foe.lv, false, meta.steadyMult()), pressLabel('FIRE', fireOwner(i)), 'good', fireOwner(i))
-    local dmg = sh.range == 'NEAR' and (9 + capLvlFor(i) + util.irand(0, 3)) or (6 + capLvlFor(i) + util.irand(0, 2))
+    local shotId = 'round'
+    local guns = sh.guns
+    local armor = sb.foe.armor or 0
+    local isWeak = (sb.foe.weak == shotId)
+    local isResisted = (sb.foe.armor > 0 and sb.foe.weak ~= shotId)
+    local shot = data.SHOTS[shotId]
+    local pwr = shot.power
+    if sh.range == 'NEAR' then
+      pwr = pwr + 2
+    end
+    local baseDmg = pwr + guns - armor + util.irand(0, 2)
+    local dmg = baseDmg
     if res == 'perfect' then
       dmg = math.floor(dmg * 1.5)
-      -- Hidden delight (for the 'cannonball' secret): three perfect FIRE
-      -- shots in one battle earns a rainbow trail for the rest of it.
       sb.perfectFireCount = sb.perfectFireCount + 1
       if sb.perfectFireCount >= 3 and not sb.cannonballFx then
         sb.cannonballFx = true
         game.foundSecret('cannonball')
       end
-    elseif res == 'miss' then dmg = math.max(1, math.floor(dmg * 0.6)) end
-    fireBall(i, 'foe', dmg, {})
+    elseif res == 'miss' then
+      dmg = math.max(1, math.floor(dmg * 0.6))
+    end
+    local mult = 1
+    if isWeak then
+      mult = 1.5
+    elseif isResisted then
+      mult = 0.75
+    end
+    dmg = math.max(0, math.floor(dmg * mult))
+    fireBall(i, 'foe', dmg, { isWeak = isWeak, isResisted = isResisted })
     waitAnim()
   elseif id == 'move' then
     sh.range = sh.range == 'NEAR' and 'FAR' or 'NEAR'
     local bigThreat = sb.isBoss and sb.foe.intent == 'bigshot' and sb.foe.target == i
-    sh.dodge = bigThreat and 1 or 0.5
+    sh.dodge = shipRules.getDodgeChance(sh.sails, sh.sailsStage, bigThreat)
     SFX.move()
     local ex, ey = shipXY(i)
     engine.addFloat(ex + 16, ey - 18, bigThreat and 'DODGE THE BIG SHOT!' or 'DODGE READY!', CO.foam, 1)
@@ -607,12 +666,40 @@ end
 local function runBroadside()
   local r1, r2 = waitTimingCoop(timing.cfg(sb.foe.lv, false, meta.steadyMult()),
     'BROADSIDE! PRESS ' .. input.promptKey(input.p1, 'a') .. ' / ' .. input.promptKey(input.p2, 'a') .. '!', 'good')
-  local base1 = sb.ships[1].range == 'NEAR' and (9 + capLvlFor(1) + util.irand(0, 3)) or (6 + capLvlFor(1) + util.irand(0, 2))
-  local base2 = sb.ships[2].range == 'NEAR' and (9 + capLvlFor(2) + util.irand(0, 3)) or (6 + capLvlFor(2) + util.irand(0, 2))
+  local shotId = 'round'
+  local guns1 = sb.ships[1].guns
+  local guns2 = sb.ships[2].guns
+  local armor = sb.foe.armor or 0
+  local isWeak = (sb.foe.weak == shotId)
+  local isResisted = (sb.foe.armor > 0 and sb.foe.weak ~= shotId)
+
+  local base1 = 9 + guns1 - armor + util.irand(0, 2)
+  if r1 == 'perfect' then
+    base1 = math.floor(base1 * 1.5)
+  elseif r1 == 'miss' then
+    base1 = math.max(1, math.floor(base1 * 0.6))
+  end
+
+  local base2 = 9 + guns2 - armor + util.irand(0, 2)
+  if r2 == 'perfect' then
+    base2 = math.floor(base2 * 1.5)
+  elseif r2 == 'miss' then
+    base2 = math.max(1, math.floor(base2 * 0.6))
+  end
+
   local dmg = base1 + base2
   local rainbow = r1 ~= 'miss' and r2 ~= 'miss'
   if rainbow then dmg = dmg + 8 end
-  fireBall(1, 'foe', dmg, {})
+
+  local mult = 1
+  if isWeak then
+    mult = 1.5
+  elseif isResisted then
+    mult = 0.75
+  end
+  dmg = math.max(0, math.floor(dmg * mult))
+
+  fireBall(1, 'foe', dmg, { isWeak = isWeak, isResisted = isResisted })
   waitAnim()
   if rainbow then engine.addFloat(VW / 2, 50, 'RAINBOW BROADSIDE!', CO.gold, 2) end
   runFoeTurn()

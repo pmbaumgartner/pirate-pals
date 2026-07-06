@@ -137,6 +137,30 @@ ok(eStats.sails == 3, 'sloop sails is 3')
 ok(eStats.weak == 'chain', 'sloop weak is chain')
 ok(eStats.armor == 0, 'sloop armor is 0')
 
+-- 8. Test stage clamping and effective stats
+ok(shipRules.clampStage(0) == 0, 'stage 0 clamp is 0')
+ok(shipRules.clampStage(-1) == -1, 'stage -1 clamp is -1')
+ok(shipRules.clampStage(-2) == -2, 'stage -2 clamp is -2')
+ok(shipRules.clampStage(-3) == -2, 'stage -3 clamps to -2')
+ok(shipRules.clampStage(1) == 0, 'stage 1 clamps to 0')
+
+ok(shipRules.getEffectiveStat(3, 0) == 3, 'effective stat sails 3, stage 0 is 3')
+ok(shipRules.getEffectiveStat(3, -1) == 2, 'effective stat sails 3, stage -1 is 2')
+ok(shipRules.getEffectiveStat(3, -2) == 1, 'effective stat sails 3, stage -2 is 1')
+ok(shipRules.getEffectiveStat(3, -3) == 1, 'effective stat sails 3, stage -3 clamps to 1')
+ok(shipRules.getEffectiveStat(1, -2) == 0, 'effective stat sails 1, stage -2 clamps to 0')
+
+-- 9. Test dodge quality
+-- sails = 1 + tier. tier = sails - 1.
+-- effective sails 3 (tier 2), stage 0 -> tier 2. Dodge = 0.4 + 2 * 0.15 = 0.70.
+ok(math.abs(shipRules.getDodgeChance(3, 0, false) - 0.70) < 0.001, 'dodge chance sails 3, stage 0 is 0.70')
+ok(math.abs(shipRules.getDodgeChance(3, -1, false) - 0.55) < 0.001, 'dodge chance sails 3, stage -1 is 0.55')
+ok(math.abs(shipRules.getDodgeChance(3, -2, false) - 0.40) < 0.001, 'dodge chance sails 3, stage -2 is 0.40')
+ok(math.abs(shipRules.getDodgeChance(3, -3, false) - 0.40) < 0.001, 'dodge chance sails 3, stage -3 is 0.40')
+ok(math.abs(shipRules.getDodgeChance(1, -2, false) - 0.40) < 0.001, 'dodge chance sails 1, stage -2 is 0.40')
+-- big threat should always dodge (1.0)
+ok(shipRules.getDodgeChance(3, 0, true) == 1.0, 'dodge chance under big threat is 1.0')
+
 if fails > 0 then
   print(fails .. ' FAILURES')
   os.exit(1)
