@@ -14,6 +14,8 @@ local shipBattle = require 'src.states.ship_battle'
 local personBattle = require 'src.states.person_battle'
 local loot = require 'src.states.loot'
 local chart = require 'src.states.chart'
+local palette = require 'src.palette'
+local CO = palette.CO
 
 -- Title + mode select: walked via the real input path (not setState) before
 -- the deterministic run starts, so the title<->modeSelect wiring gets
@@ -60,6 +62,7 @@ wait(1.0)
 
 shot('sail')
 
+game.run.fittings.slot = 'chain'
 shipBattle.start(game.run.sea.enemies[1])
 expect(engine.cur == 'shipBattle', 'shipBattle.start did not switch state')
 wait(2.5)
@@ -68,6 +71,41 @@ wait(2.5)
 -- pick phase, so poke each one in and shot it for the CI artifact.
 local sbTel = shipBattle.sb
 waitUntil(function() return sbTel.turn == 'you' and not engine.trans.on end, 5)
+
+-- Stage shot submenu with preview screenshot
+sbTel.subOpen = 'fire'
+sbTel.sub = 0
+wait(0.2)
+shot('ship-shot-submenu')
+sbTel.subOpen = false
+
+-- Stage foe HUD details (hp, pips, stages, ablaze)
+local oldFoeHp = sbTel.foe.hp
+local oldFoeSails = sbTel.foe.sailsStage
+local oldFoeGuns = sbTel.foe.gunsStage
+local oldFoeAblaze = sbTel.foe.ablaze
+local oldFoeRep = sbTel.foe.repairs
+local oldFoeMaxRep = sbTel.foe.maxRepairs
+
+sbTel.foe.hp = 12
+sbTel.foe.sailsStage = -1
+sbTel.foe.gunsStage = -1
+sbTel.foe.ablaze = 3
+sbTel.foe.repairs = 1
+sbTel.foe.maxRepairs = 2
+wait(0.2)
+shot('ship-foe-hud-details')
+
+-- Solo HUD screenshot
+shot('ship-solo-hud')
+
+-- Restore foe stats
+sbTel.foe.hp = oldFoeHp
+sbTel.foe.sailsStage = oldFoeSails
+sbTel.foe.gunsStage = oldFoeGuns
+sbTel.foe.ablaze = oldFoeAblaze
+sbTel.foe.repairs = oldFoeRep
+sbTel.foe.maxRepairs = oldFoeMaxRep
 for _, intent in ipairs({ 'fire', 'bigshot', 'volley', 'fix' }) do
   sbTel.foe.intent = intent
   wait(0.1)
@@ -167,6 +205,16 @@ wait(0.2)
 tap('z')
 wait(0.3)
 expect(game.colorOf('p1') == 'red', 'SAILS tab did not re-pick the crew color')
+
+-- DRY DOCK screenshot
+game.run.salvage.timber = 4
+game.run.salvage.cloth = 7
+game.run.salvage.iron = 2
+game.run.blueprints.fire = true
+game.run.blueprints.chain = true
+engine.setState('drydock')
+wait(1.0)
+shot('drydock')
 
 engine.setState('log')
 wait(1.0)
@@ -405,6 +453,16 @@ expect(shipBattle.sb.isBoss, 'expected isBoss on the boss ship battle')
 wait(2.5)
 shot('boss-ship')
 
+local sbB = shipBattle.sb
+sbB.announcedPhase = 2
+sbB.foe.hp = 30
+sbB.foe.intent = 'ram'
+sbB.msg = "THE KING BELLOWS - RAMMING SPEED!"
+engine.showBanner("THE KING BELLOWS - RAMMING SPEED!", CO.red, 1.5)
+wait(0.2)
+shot('boss-king-ram')
+engine.banner.t = engine.banner.dur -- clear banner
+
 personBattle.startBoss(game.run.sea.enemies[1])
 expect(engine.cur == 'personBattle', 'personBattle.startBoss did not switch state')
 expect(personBattle.pb.isBoss, 'expected isBoss on the boss boarding battle')
@@ -542,6 +600,7 @@ waitUntil(fleetSettled, 5)
 -- Risky-UI shots (bounds invariant coverage): the 2x2 fleet menu grid and
 -- the 2-row-capped SPECIAL submenu, both live in the bottom panel.
 shot('fleet-menu')
+shot('ship-fleet-hud')
 tap('d')
 tap('d')
 tap('d') -- P1 menu: FIRE -> SPECIAL
@@ -676,6 +735,21 @@ require('src.states.victory').start()
 expect(engine.cur == 'victory', 'captains victory did not switch state')
 wait(0.4)
 shot('captains-victory')
+
+-- Stage a ship battle loss to capture the capped-loss banner
+local dummyFoe = { lv = 1, boss = false, class = 'sloop', name = 'TEST PIRATE' }
+shipBattle.start(dummyFoe)
+expect(engine.cur == 'shipBattle', 'dummy shipBattle.start did not switch state')
+wait(0.2)
+local sbLoss = shipBattle.sb
+sbLoss.ships[1].hp = 0
+sbLoss.over = true
+sbLoss.msg = "HER HULL SHRUGGED OFF OUR SHOTS - WE NEED HEAVIER GUNS OR HOTTER SHOT."
+engine.showBanner("SLIPPED AWAY!", CO.orange, 1.3)
+wait(0.2)
+shot('capped-loss')
+engine.banner.t = engine.banner.dur -- clear banner
+wait(0.2)
 
 print('SMOKE OK')
 love.event.quit(0)
