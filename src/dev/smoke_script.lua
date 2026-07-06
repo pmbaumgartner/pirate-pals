@@ -893,5 +893,65 @@ shot('capped-loss')
 engine.banner.t = engine.banner.dur -- clear banner
 wait(0.2)
 
+-- Real ship-battle loss: force the deterministic ablaze-tick route to
+-- shipDown (backToTurnLogic, ship_battle.lua:395-409) instead of relying on
+-- foe FIRE rolls. MOVE resolves with no timing bar, so the round runs
+-- straight through to the ablaze tick, safeEscape, and back to sail.
+input.setCoop(false)
+game.newGame()
+engine.setState('sail')
+wait(0.3)
+
+local sbReal = startSmokeShipBattle({ lv = 1, name = 'TEST SLOOP', class = 'sloop' }, nil)
+local shReal = sbReal.ships[1]
+shReal.ablaze, shReal.hp, shReal.dodge = 1, 4, 0
+sbReal.foe.intent = 'fix'
+chooseSoloShipAction(sbReal, 1) -- MOVE
+waitUntil(function() return sbReal.over end, 8)
+expect(shReal.hp == 0, 'ablaze tick did not zero the player hull')
+waitUntil(function() return engine.cur == 'sail' and not engine.trans.on end, 5)
+expect(game.run ~= nil, 'run should still be intact after the ship-battle loss')
+shot('real-loss')
+
+-- Dock walk: TAILOR and DRY DOCK both return to dock (which resets its
+-- cursor to the top on every enter), then BACK TO SEA lands on sail.
+engine.setState('dock')
+wait(0.2)
+tap('z') -- TAILOR
+expect(engine.cur == 'tailor', 'dock did not open tailor')
+tap('x') -- back to dock
+expect(engine.cur == 'dock', 'tailor back did not return to dock')
+tap('down')
+tap('z') -- DRY DOCK
+expect(engine.cur == 'drydock', 'dock did not open drydock')
+tap('x') -- back to dock
+expect(engine.cur == 'dock', 'drydock back did not return to dock')
+wait(0.2)
+shot('dock')
+tap('down')
+tap('down')
+tap('z') -- BACK TO SEA
+expect(engine.cur == 'sail', 'dock BACK TO SEA did not return to sail')
+wait(0.2)
+
+-- Save -> CONTINUE round-trip: gold and crew survive the save/load cycle,
+-- and run.party keeps its reference identity into run.crew (game.lua:661-673).
+game.run.gold = 123
+game.save()
+expect(game.hasSave(), 'game.save() did not create a save file')
+local crewCountBefore = #game.run.crew
+
+engine.setState('title')
+wait(0.2)
+tap('z') -- CONTINUE (bound to 'a' when a save exists; title.lua:30-35)
+waitUntil(function() return engine.cur == 'sail' and not engine.trans.on end, 5)
+expect(game.run.gold == 123, 'CONTINUE did not round-trip run.gold')
+expect(#game.run.crew == crewCountBefore, 'CONTINUE did not round-trip the crew roster')
+local partyIsCrewRef = false
+for _, c in ipairs(game.run.crew) do
+  if c == game.run.party[1] then partyIsCrewRef = true end
+end
+expect(partyIsCrewRef, 'loaded run.party[1] is not reference-identical to a run.crew entry')
+
 print('SMOKE OK')
 love.event.quit(0)
