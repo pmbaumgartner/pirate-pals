@@ -49,7 +49,9 @@ local function drawPlayerPanel(player, x0)
     for i = 0, #items - 1 do
       local it = items[i + 1]
       local c = not it.ok and CO.grayD or (i == pl.menu and col or CO.white)
-      font.drawText((i == pl.menu and '>' or ' ') .. it.label, x0 + 16, 134 + i * 10, c, 1)
+      local icon = ({ atk = 'mini_sword', grd = 'mini_shield', spc = 'mini_star', stay = 'mini_wait' })[it.id]
+      if icon then sprites.draw(icon, x0 + 16, 132 + i * 10, false, 1, it.ok and 1 or 0.4) end
+      font.drawText((i == pl.menu and '>' or ' ') .. it.label, x0 + 27, 134 + i * 10, c, 1)
     end
     local desc = items[pl.menu + 1].desc
     if desc then font.drawText(desc, x0, 173, CO.gray, 1) end
@@ -311,13 +313,13 @@ function M.draw()
         gfx.rectangle('fill', ux + 12, uy - 5, 4, 4)
         ui.outline(ux + 12, uy - 5, 4, 4, CO.ink)
       end
-      if u.buff > 0 then font.drawText('+', ux - 2, uy - 5, CO.gold, 1) end
+      if u.buff > 0 then font.drawTextO('+', ux - 2, uy - 5, CO.gold, 1) end
       if u.loot then sprites.draw('coinS', ux + 10, uy - 8) end
       if u.side == 'p' and u.ref and model.bondBonus(u) > 0 then
-        font.drawText('@', ux + 12, uy - 5, CO.red, 1)
+        font.drawTextO('@', ux + 12, uy - 5, CO.red, 1)
       end
       if u.side == 'p' and isCoop and not u.acted then
-        font.drawText(u.owner == 'p2' and 'P2' or 'P1', ux - 3, uy + 11,
+        font.drawTextO(u.owner == 'p2' and 'P2' or 'P1', ux - 3, uy + 11,
           u.owner == 'p2' and CO.green or CO.gold, 1)
       end
     end
@@ -421,7 +423,9 @@ function M.draw()
       for i = 0, #items - 1 do
         local it = items[i + 1]
         local col = not it.ok and CO.grayD or (i == pl.menu and CO.gold or CO.white)
-        font.drawText((i == pl.menu and '>' or ' ') .. it.label, mx, my + i * 10, col, 1)
+        local icon = ({ atk = 'mini_sword', grd = 'mini_shield', spc = 'mini_star', stay = 'mini_wait' })[it.id]
+        if icon then sprites.draw(icon, mx, my + i * 10 - 2, false, 1, it.ok and 1 or 0.4) end
+        font.drawText((i == pl.menu and '>' or ' ') .. it.label, mx + 11, my + i * 10, col, 1)
       end
       local desc = items[pl.menu + 1].desc
       if desc then font.drawText(desc, 6, 173, CO.gray, 1) end

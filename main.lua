@@ -11,6 +11,7 @@
 --   --shot[=name] [--frames=N1,N2,...]  capture PNG(s) N frames after --warp, then quit
 --   --script=path.lua    drive the game via a dev script (src/dev/script.lua)
 --   --smoke [--shots]    alias for --script=src/dev/smoke_script.lua --speed=8
+--   --readability=log    print text-readability violations instead of failing
 --   --dump                dump game.run + battle state to stdout at quit
 --   --dev                 enable the F1-F10 cheat panel and Tab-hold 4x speed
 --   --live                hot-reload changed source files (src/lib/lurker.lua)
@@ -156,7 +157,8 @@ function love.load(args)
   if flags.script then
     devScript = require 'src.dev.script'
     devScript.shotsOn = flags.shots and true or false
-    devScript.canvas = canvas -- shot() reads back the native 320x180 canvas
+    devScript.canvas = canvas -- shot()/contrast checks read back the native 320x180 canvas
+    devScript.readabilityMode = flags.readability
     devScript.load(flags.script)
   end
 

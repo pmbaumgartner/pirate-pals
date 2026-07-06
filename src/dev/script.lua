@@ -11,8 +11,9 @@
 -- anywhere on disk, e.g. a scratch dir outside the game's source tree.
 local input = require 'src.input'
 local bounds = require 'src.dev.bounds'
+local readability = require 'src.dev.readability'
 
-local M = { t = 0, dt = 0, shotsOn = false, frame = 0 }
+local M = { t = 0, dt = 0, shotsOn = false, frame = 0, readabilityMode = nil }
 
 -- Baton (src/input.lua) polls love.keyboard.isDown instead of consuming
 -- key events, so tap() can't inject presses through input.keypressed alone
@@ -132,6 +133,44 @@ function M.load(path)
   M.co = coroutine.create(chunk)
 end
 
+-- Per-callsite minimum contrast seen so far; --readability=log prints a
+-- READABILITY-MIN line on each new minimum, so one smoke run yields a
+-- greppable census of the dimmest text in the game.
+local minRatios = {}
+
+-- Records were produced during the last love.draw and the native canvas
+-- still holds exactly that frame (it isn't cleared until the next draw), so
+-- the tier-2 readback matches the records. Under --speed=N records are
+-- non-empty on at most one tick in N.
+local function checkReadability()
+  local records = bounds.takeRecords()
+  if #records == 0 then return end
+  local img
+  if M.canvas and (#records > 1 or readability.needsPixels(records)) then
+    img = M.canvas:newImageData()
+  end
+  local viols = readability.checkOverlaps(records, img)
+  local stats = M.readabilityMode == 'log' and {} or nil
+  local cviols = readability.checkContrast(records, img, stats)
+  for _, v in ipairs(cviols) do viols[#viols + 1] = v end
+  if stats then
+    for _, st in ipairs(stats) do
+      if not minRatios[st.src] or st.ratio < minRatios[st.src] then
+        minRatios[st.src] = st.ratio
+        print(string.format('READABILITY-MIN %s ratio=%.2f "%s"', st.src, st.ratio, st.s))
+      end
+    end
+  end
+  if #viols > 0 then
+    if M.readabilityMode == 'log' then
+      print('READABILITY: ' .. table.concat(viols, '; '))
+    else
+      fail('text readability: ' .. table.concat(viols, '; '))
+      return true
+    end
+  end
+end
+
 function M.update(dt)
   M.t = M.t + dt
   M.dt = dt
@@ -142,6 +181,7 @@ function M.update(dt)
     fail('text out of bounds: ' .. table.concat(offenders, '; '))
     return
   end
+  if checkReadability() then return end
   if M.co and coroutine.status(M.co) ~= 'dead' then
     local ok, err = coroutine.resume(M.co)
     if not ok then fail(tostring(err)) end

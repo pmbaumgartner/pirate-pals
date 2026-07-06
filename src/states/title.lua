@@ -54,10 +54,8 @@ engine.states.title = {
     end
     local bob = util.round(math.sin(gt * 2.2) * 2)
     sprites.draw('shipP', 148, 76 + bob, false, 2)
-    font.drawText('PIRATE', VW / 2, 22, CO.ink, 4, 'center')
-    font.drawText('PIRATE', VW / 2 - 1, 21, CO.gold, 4, 'center')
-    font.drawText('PALS', VW / 2, 47, CO.ink, 4, 'center')
-    font.drawText('PALS', VW / 2 - 1, 46, CO.paper, 4, 'center')
+    font.drawTextO('PIRATE', VW / 2 - 1, 21, CO.gold, 4, 'center')
+    font.drawTextO('PALS', VW / 2 - 1, 46, CO.paper, 4, 'center')
     font.drawTextO('A CO-OP ADVENTURE PROTOTYPE', VW / 2, 72, CO.white, 1, 'center')
     local k1a, k1b = input.promptKey(input.p1, 'a'), input.promptKey(input.p1, 'b')
     local k2a, k2b = input.promptKey(input.p2, 'a'), input.promptKey(input.p2, 'b')
@@ -116,7 +114,7 @@ engine.states.modeSelect = {
   draw = function()
     gfx.setColor(CO.sky); gfx.rectangle('fill', 0, 0, VW, VH)
     gfx.setColor(CO.sea); gfx.rectangle('fill', 0, 130, VW, VH - 130)
-    font.drawText('NEW VOYAGE', VW / 2, 14, CO.gold, 2, 'center')
+    font.drawTextO('NEW VOYAGE', VW / 2, 14, CO.gold, 2, 'center')
     font.drawTextO('SAIL SOLO OR TEAM UP!', VW / 2, 32, CO.paper, 1, 'center')
 
     local cardW, cardH, gap = CARD_W, CARD_H, CARD_GAP

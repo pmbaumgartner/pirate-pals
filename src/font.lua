@@ -49,6 +49,10 @@ local function glyphOf(ch)
   return FONT[ch] or FONT[ch:upper()] or FALLBACK
 end
 
+-- Exposed so dev-only checkers (src/dev/readability.lua) can compute the
+-- exact lit pixels of a text call from the same masks drawText renders.
+M.glyph = glyphOf
+
 function M.textWidth(s, sc)
   sc = sc or 1
   s = tostring(s)

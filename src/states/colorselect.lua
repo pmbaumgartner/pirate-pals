@@ -150,7 +150,7 @@ engine.states.colorSelect = {
   draw = function()
     gfx.setColor(CO.sky); gfx.rectangle('fill', 0, 0, VW, VH)
     gfx.setColor(CO.sea); gfx.rectangle('fill', 0, 150, VW, VH - 150)
-    font.drawText(cs.p2 and 'PICK YOUR COLORS!' or 'PICK YOUR COLOR!', VW / 2, 12, CO.gold, 2, 'center')
+    font.drawTextO(cs.p2 and 'PICK YOUR COLORS!' or 'PICK YOUR COLOR!', VW / 2, 12, CO.gold, 2, 'center')
 
     if cs.p2 then
       drawPreview(VW / 2 - 80, 'P1', colorAt(cs.p1.i).id, CO.gold, cs.p1.done)

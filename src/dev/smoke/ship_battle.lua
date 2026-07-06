@@ -15,12 +15,16 @@ return function(ctx, h)
   local sbTel = shipBattle.sb
   waitUntil(function() return sbTel.turn == 'select' and not engine.trans.on end, 5)
 
-  -- Set up the shot submenu preview screenshot.
+  -- Set up the shot submenu preview screenshot. Force weak to a known shot
+  -- so the artifact shows the mini_weak marker on its menu row.
+  local oldWeak = sbTel.foe.weak
+  sbTel.foe.weak = 'chain'
   sbTel.ships[1].submenu = 'shot'
   sbTel.ships[1].sub = 0
   wait(0.2)
   shot('ship-shot-submenu')
   sbTel.ships[1].submenu = nil
+  sbTel.foe.weak = oldWeak
 
   -- Set up foe HUD details: hp, pips, stat stages, and ablaze.
   local oldFoeHp = sbTel.foe.hp

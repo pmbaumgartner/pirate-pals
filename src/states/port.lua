@@ -54,7 +54,7 @@ engine.states.port = {
         meta.save()
         SFX.buy()
         engine.addParts(VW - 50, 9, 14, CO.gold, 45)
-        engine.addFloat(VW - 50, 16, 'UPGRADED!', CO.gold, 1)
+        engine.addFloat(VW - 12, rowY - 8, 'UPGRADED!', CO.gold, 1)
       else
         SFX.bump()
         engine.addFloat(VW - 12, rowY - 8, 'NEED MORE GOLD!', CO.red, 1)
@@ -87,12 +87,12 @@ engine.states.port = {
         gfx.rectangle('fill', 8, y - 2, VW - 16, ROW_H - 2)
       end
       font.drawText((sel and '>' or ' ') .. def.name, 12, y, sel and CO.gold or CO.white, 1)
-      font.drawText(def.desc, 16, y + 11, CO.gray, 1)
+      font.drawTextO(def.desc, 16, y + 11, CO.gray, 1)
       local pips = ''
       for t = 1, def.max do pips = pips .. (t <= tier and '*' or '.') end
       font.drawText(pips, VW - 96, y, CO.gold, 1, 'right')
       local cost = def.costs[tier + 1]
-      font.drawText(cost and (cost .. 'G') or 'MAX', VW - 12, y, cost and CO.gold or CO.gray, 1, 'right')
+      font.drawTextO(cost and (cost .. 'G') or 'MAX', VW - 12, y, cost and CO.gold or CO.gray, 1, 'right')
     end
 
     local nvY = 40 + #UPGRADE_KEYS * ROW_H + 6

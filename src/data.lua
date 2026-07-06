@@ -388,10 +388,10 @@ end
 
 -- Ship combat shot tables.
 M.SHOTS = {
-  round = { id = 'round', label = 'ROUND SHOT', power = 7, powder = 999999, effect = 'plain' },
-  chain = { id = 'chain', label = 'CHAIN SHOT', power = 4, powder = 3, effect = 'sails_down' },
-  grape = { id = 'grape', label = 'GRAPE SHOT', power = 3, powder = 3, effect = 'guns_down' },
-  fire  = { id = 'fire',  label = 'FIRE SHOT',  power = 5, powder = 2, effect = 'ablaze' },
+  round = { id = 'round', label = 'ROUND SHOT', power = 7, powder = 999999, effect = 'plain', icon = 'icon_fire' },
+  chain = { id = 'chain', label = 'CHAIN SHOT', power = 4, powder = 3, effect = 'sails_down', icon = 'icon_chain' },
+  grape = { id = 'grape', label = 'GRAPE SHOT', power = 3, powder = 3, effect = 'guns_down', icon = 'icon_grape' },
+  fire  = { id = 'fire',  label = 'FIRE SHOT',  power = 5, powder = 2, effect = 'ablaze', icon = 'icon_flame' },
 }
 
 M.SHIPCLASSES = {

@@ -55,15 +55,26 @@ function M.addFloat(x, y, text, color, sc)
   -- Same invariant horizontally: a floater near a canvas edge (e.g. a bark
   -- over a ship on the leftmost sea column) slides inward instead of
   -- clipping. +-2 covers the outline pass and the backing strip.
-  local w = font.textWidth(text, sc or 1)
+  sc = sc or 1
+  local w = font.textWidth(text, sc)
   local half = math.floor(w / 2)
   x = math.max(half + 2, math.min(x, VW - (w - half) - 2))
-  local bumped = true
-  while bumped do
+  -- Width-aware: two floaters collide when both their glyph spans (plus the
+  -- drop shadow, sc wide/tall) intersect; the bump lifts the new one fully
+  -- clear of the live one. Narrow fixed windows let long barks overlap.
+  local bumped, tries = true, 0
+  while bumped and tries < 16 do
+    tries = tries + 1
     bumped = false
     for _, f in ipairs(M.floaters) do
-      if y > 16 and math.abs(f.x - x) < 10 and math.abs(f.y - y) < 7 then
-        y = math.max(f.y - 7, 16)
+      local fw = font.textWidth(f.text, f.sc)
+      local xHit = math.abs(f.x - x) < (w + fw) / 2 + math.max(sc, f.sc) + 1
+      local yHit = y < f.y + 6 * f.sc + 1 and f.y < y + 6 * sc + 1
+      if xHit and yHit then
+        local up = f.y - 6 * sc - 1
+        -- No headroom above the ceiling (y=16, matching the rise clamp in
+        -- updateFx): drop below the blocker instead of stacking on it.
+        y = up >= 16 and up or f.y + 6 * f.sc + 1
         bumped = true
       end
     end
@@ -158,6 +169,11 @@ function M.drawToast()
   else a = 1 end
   a = util.clamp(a, 0, 1)
   local c = b.color
+  -- Ink strip behind the toast (like FLOAT_BACKING) so it stays readable
+  -- over any state — the other overlay layers already paint their own.
+  local w = font.textWidth(b.text, 1)
+  gfx.setColor(CO.ink[1], CO.ink[2], CO.ink[3], a * 0.5)
+  gfx.rectangle('fill', VW - 4 - w - 2, 21, w + 4, 7)
   font.drawTextO(b.text, VW - 4, 22, { c[1], c[2], c[3], a }, 1, 'right')
 end
 

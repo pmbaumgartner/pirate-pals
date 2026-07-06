@@ -308,7 +308,10 @@ engine.states.sail = {
     sprites.draw('gemS', 96, 7)
     font.drawText(game.distinctTreasures() .. '/12', 106, 7, CO.purple, 1)
     font.drawText('CREW ' .. #run.crew, 146, 7, CO.paper, 1)
-    font.drawText('C CREW  T LOG  V CHART  L VOYAGE', VW - 5, 7, CO.gray, 1, 'right')
+    local ip = input.promptKey
+    font.drawText(ip(input.p1, 'crew') .. ' CREW  ' .. ip(input.p1, 'log') .. ' LOG  '
+      .. ip(input.p1, 'voyage') .. ' CHART  ' .. ip(input.p1, 'vlog') .. ' VOYAGE',
+      VW - 5, 7, CO.gray, 1, 'right')
 
     -- Bottom hint bar.
     gfx.setColor(CO.uiBg)

@@ -433,6 +433,121 @@ local ICON_VOLLEY = {
   "............",
 }
 
+-- Shot-type icons for the weakness badge and shot menu: chain = two balls
+-- joined by a link, grape = pellet cluster, flame = fire shot. Plain round
+-- shot reuses icon_fire's cannonball. One table keyed by sprite name, not
+-- one local each: build() sits near Lua's 60-upvalue limit per function.
+local SHOT_UI_ICONS = {}
+SHOT_UI_ICONS.icon_chain = {
+  "............",
+  ".KKKK.......",
+  "KKKKKK......",
+  "KWKKKK......",
+  "KKKKKK......",
+  ".KKKK.L.....",
+  ".....L......",
+  "....L..KKKK.",
+  "......KKKKKK",
+  "......KWKKKK",
+  "......KKKKKK",
+  ".......KKKK.",
+}
+
+SHOT_UI_ICONS.icon_grape = {
+  "............",
+  "....KK......",
+  "...KKKK.....",
+  ".KK.KK.KK...",
+  "KKKK..KKKK..",
+  "KWKK..KKKK..",
+  "KKKK..KKKK..",
+  ".KK.KKK.KK..",
+  "...KKKKK....",
+  "...KWKKK....",
+  "...KKKKK....",
+  "....KKK.....",
+}
+
+SHOT_UI_ICONS.icon_flame = {
+  "......O.....",
+  ".....OO.....",
+  "....OOO.....",
+  "....OOOO....",
+  "...OOOOOO...",
+  "..OORROOOO..",
+  "..ORRRROOO..",
+  ".OORRYRROO..",
+  ".ORRYYYRRO..",
+  ".ORYYYYYRO..",
+  "..RYYYYYR...",
+  "...RRYRR....",
+}
+
+-- Crew-special command icon: a gold star, matching mini_star's silhouette.
+SHOT_UI_ICONS.icon_special = {
+  "............",
+  ".....YY.....",
+  ".....YY.....",
+  "....YYYY....",
+  ".YYYYYYYYYY.",
+  "..YYYYYYYY..",
+  "...YYYYYY...",
+  "...YYYYYY...",
+  "..YYYYYYYY..",
+  "..YYY..YYY..",
+  "..YY....YY..",
+  "............",
+}
+
+-- Weakness starburst: the same mark sits on the foe HUD badge and beside
+-- the matching shot in the shot menu, so the pairing reads without words.
+-- Ink outline baked in, like the other minis.
+SHOT_UI_ICONS.mini_weak = {
+  "...KK...",
+  "..KYYK..",
+  "KKKYYKKK",
+  "KYYYYYYK",
+  "KYYYYYYK",
+  "KKKYYKKK",
+  "..KYYK..",
+  "...KK...",
+}
+
+-- Boarding act-menu minis: shield (guard), star (special, echoes
+-- icon_special), Zz (stay). Sword reuses mini_sword.
+SHOT_UI_ICONS.mini_shield = {
+  ".KKKKKK.",
+  "KUUWWUUK",
+  "KUUWWUUK",
+  "KUUWWUUK",
+  ".KUWWUK.",
+  ".KUWWUK.",
+  "..KUUK..",
+  "...KK...",
+}
+
+SHOT_UI_ICONS.mini_star = {
+  "...KK...",
+  "..KYYK..",
+  "KKKYYKKK",
+  "KYYYYYYK",
+  ".KYYYYK.",
+  ".KYYYYK.",
+  ".KYKKYK.",
+  ".KK..KK.",
+}
+
+SHOT_UI_ICONS.mini_wait = {
+  "WWWW....",
+  "..W.....",
+  ".W......",
+  "WWWW....",
+  "....www.",
+  ".....w..",
+  "....www.",
+  "........",
+}
+
 -- Boss chart marker: an ominous crowned silhouette, drawn at the end of the
 -- voyage chart's path and reused nowhere else (the ship phase uses shipKing).
 local KING_SIL = {
@@ -873,6 +988,7 @@ function M.build()
   makeSprite('icon_planks', ICON_PLANKS)
   makeSprite('icon_bigshot', ICON_BIGSHOT)
   makeSprite('icon_volley', ICON_VOLLEY)
+  for name, rows in pairs(SHOT_UI_ICONS) do makeSprite(name, rows) end
   makeSprite('mini_sword', MINI_SWORD)
   makeSprite('mini_boot', MINI_BOOT)
   makeSprite('mini_planks', MINI_PLANKS)

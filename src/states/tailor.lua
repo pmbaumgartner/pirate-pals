@@ -150,7 +150,7 @@ engine.states.tailor = {
           or (coop and game.colorOf('p2') == c.id and 'P2 SAILS') or 'FREE'
         local tagCol = tag == 'P1 SAILS' and CO.gold
           or (tag == 'P2 SAILS' and CO.green) or CO.gray
-        font.drawText(tag, 172, y2, tagCol, 1, 'right')
+        font.drawTextO(tag, 172, y2, tagCol, 1, 'right')
       end
 
       -- Preview pane: ship + captain in the hovered color, per player.
@@ -174,13 +174,16 @@ engine.states.tailor = {
         sprites.drawPirate('captain', 'none', 252, 52, false, 2, nil, hover.id)
         font.drawText(hover.name, 249, 104, CO.white, 1, 'center')
         if game.colorOf('p1') ~= hover.id then
-          font.drawText('Z: HOIST!', 249, 118, CO.gold, 1, 'center')
+          font.drawText(input.promptKey(input.p1, 'a') .. ': HOIST!', 249, 118, CO.gold, 1, 'center')
         end
       end
       engine.drawFx()
       gfx.setColor(CO.ink)
       gfx.rectangle('fill', 0, VH - 14, VW, 14)
-      font.drawText(coop and '< > SHOP  P1 Z / P2 N: HOIST  X LEAVE' or '< > SHOP  Z HOIST  X LEAVE',
+      local go, back = input.promptKey(input.p1, 'a'), input.promptKey(input.p1, 'b')
+      font.drawText(coop
+        and ('< > SHOP  P1 ' .. go .. ' / P2 ' .. input.promptKey(input.p2, 'a') .. ': HOIST  ' .. back .. ' LEAVE')
+        or ('< > SHOP  ' .. go .. ' HOIST  ' .. back .. ' LEAVE'),
         VW / 2, VH - 10, CO.gray, 1, 'center')
       return
     end
@@ -195,12 +198,12 @@ engine.states.tailor = {
         gfx.rectangle('fill', 8, y2 - 2, 168, 12)
       end
       local col = run.owned[it.id] and CO.gray or CO.white
-      font.drawText((sel and '>' or ' ') .. it.name, 12, y2, sel and CO.gold or col, 1)
+      font.drawTextO((sel and '>' or ' ') .. it.name, 12, y2, sel and CO.gold or col, 1)
       local tag = run.owned[it.id] and 'OWNED' or (it.price and (it.price .. 'G') or (it.mile .. ' GEMS'))
       local canAfford = it.price and run.gold >= it.price
       local tagCol = run.owned[it.id] and CO.gray
         or (it.price and (canAfford and CO.gold or CO.red) or CO.purple)
-      font.drawText(tag, 172, y2, tagCol, 1, 'right')
+      font.drawTextO(tag, 172, y2, tagCol, 1, 'right')
     end
 
     -- Try-on preview.
@@ -212,12 +215,13 @@ engine.states.tailor = {
     sprites.drawPirate('captain', it.id, 225, 48, false, 3)
     font.drawText(it.name, 249, 104, CO.white, 1, 'center')
     if not run.owned[it.id] and it.price then
-      font.drawText('Z: BUY', 249, 118, CO.gold, 1, 'center')
+      font.drawText(input.promptKey(input.p1, 'a') .. ': BUY', 249, 118, CO.gold, 1, 'center')
     end
     engine.drawFx()
     gfx.setColor(CO.ink)
     gfx.rectangle('fill', 0, VH - 14, VW, 14)
-    font.drawText('< > SAILS  Z BUY  X LEAVE', VW / 2, VH - 10, CO.gray, 1, 'center')
+    font.drawText('< > SAILS  ' .. input.promptKey(input.p1, 'a') .. ' BUY  '
+      .. input.promptKey(input.p1, 'b') .. ' LEAVE', VW / 2, VH - 10, CO.gray, 1, 'center')
   end,
 }
 

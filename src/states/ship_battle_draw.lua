@@ -33,6 +33,14 @@ local INTENT_COLOR = {
   douse = CO.white,
 }
 
+local MENU_ICON = {
+  fire = 'icon_fire',
+  move = 'icon_move',
+  fix = 'icon_fix',
+  spec = 'icon_special',
+  patch = 'icon_fix',
+}
+
 local INTENT_LABEL = {
   fire = 'SHOT!',
   bigshot = 'BIG SHOT!',
@@ -51,17 +59,17 @@ local function drawStatusRight(ent, x, y)
   local curX = x
   if fire ~= '' then
     curX = curX - font.textWidth(fire, 1)
-    font.drawText(fire, curX, y, CO.orange, 1)
+    font.drawTextO(fire, curX, y, CO.orange, 1)
     curX = curX - 2
   end
   if guns ~= '' then
     curX = curX - font.textWidth(guns, 1)
-    font.drawText(guns, curX, y, CO.red, 1)
+    font.drawTextO(guns, curX, y, CO.red, 1)
     curX = curX - 2
   end
   if sails ~= '' then
     curX = curX - font.textWidth(sails, 1)
-    font.drawText(sails, curX, y, CO.orange, 1)
+    font.drawTextO(sails, curX, y, CO.orange, 1)
   end
 end
 
@@ -69,52 +77,52 @@ local function drawStatusLeft(ent, x, y)
   local curX = x
   if ent.sailsStage < 0 then
     local arrows = string.rep('[', -ent.sailsStage)
-    font.drawText(arrows, curX, y, CO.orange, 1)
+    font.drawTextO(arrows, curX, y, CO.orange, 1)
     curX = curX + font.textWidth(arrows, 1) + 2
   end
   if ent.gunsStage < 0 then
     local arrows = string.rep('[', -ent.gunsStage)
-    font.drawText(arrows, curX, y, CO.red, 1)
+    font.drawTextO(arrows, curX, y, CO.red, 1)
     curX = curX + font.textWidth(arrows, 1) + 2
   end
   if ent.ablaze and ent.ablaze > 0 then
-    font.drawText(']', curX, y, CO.orange, 1)
+    font.drawTextO(']', curX, y, CO.orange, 1)
   end
 end
 
 local function drawRepairPips(ent, x, y)
   local active = string.rep('{', ent.repairs)
   local spent = string.rep('{', ent.maxRepairs - ent.repairs)
-  font.drawText(active, x, y, CO.orange, 1)
-  font.drawText(spent, x + ent.repairs * 4, y, CO.grayD, 1)
+  font.drawTextO(active, x, y, CO.orange, 1)
+  font.drawTextO(spent, x + ent.repairs * 4, y, CO.grayD, 1)
 end
 
 local function drawFoeRepairPips(foe)
   local spent = string.rep('{', foe.maxRepairs - foe.repairs)
   local active = string.rep('{', foe.repairs)
-  font.drawText(spent, VW - 6, 21, CO.grayD, 1, 'right')
-  font.drawText(active, VW - 6 - (foe.maxRepairs - foe.repairs) * 4, 21, CO.orange, 1, 'right')
+  font.drawTextO(spent, VW - 6, 21, CO.grayD, 1, 'right')
+  font.drawTextO(active, VW - 6 - (foe.maxRepairs - foe.repairs) * 4, 21, CO.orange, 1, 'right')
 end
 
 local function drawBossKegs(foe)
   local rx = VW - 6 - foe.maxRepairs * 4 - 6
   local volleySpent = string.rep('}', foe.maxVolleyKegs - foe.volleyKegs)
   local volleyActive = string.rep('}', foe.volleyKegs)
-  font.drawText(volleySpent, rx, 21, CO.grayD, 1, 'right')
-  font.drawText(volleyActive, rx - (foe.maxVolleyKegs - foe.volleyKegs) * 4, 21, CO.orange, 1, 'right')
+  font.drawTextO(volleySpent, rx, 21, CO.grayD, 1, 'right')
+  font.drawTextO(volleyActive, rx - (foe.maxVolleyKegs - foe.volleyKegs) * 4, 21, CO.orange, 1, 'right')
 
   local bx = rx - foe.maxVolleyKegs * 4 - 4
   local bigshotSpent = string.rep('}', foe.maxBigshotKegs - foe.bigshotKegs)
   local bigshotActive = string.rep('}', foe.bigshotKegs)
-  font.drawText(bigshotSpent, bx, 21, CO.grayD, 1, 'right')
-  font.drawText(bigshotActive, bx - (foe.maxBigshotKegs - foe.bigshotKegs) * 4, 21, CO.red, 1, 'right')
+  font.drawTextO(bigshotSpent, bx, 21, CO.grayD, 1, 'right')
+  font.drawTextO(bigshotActive, bx - (foe.maxBigshotKegs - foe.bigshotKegs) * 4, 21, CO.red, 1, 'right')
 end
 
+-- Name only: the enemy ship sprite is the class identity, and weakness is
+-- the badge row below the HP bar, not a word in the header.
 local function foeHeader(foe, isBoss)
-  if isBoss then return foe.name .. " - WEAK: " .. foe.weak:upper() end
-  local className = foe.class:upper()
-  if className == 'MANOWAR' then className = 'MAN-O-WAR' end
-  return "CAP'N " .. foe.name .. " - " .. className .. " - WEAK: " .. foe.weak:upper()
+  if isBoss then return foe.name end
+  return "CAP'N " .. foe.name
 end
 
 local function shotPowder(sh, shotId)
@@ -137,7 +145,11 @@ local function drawShotMenu(sb, sh, h)
       local label = data.SHOTS[shotId].label .. ' x' .. shotPowder(sh, shotId)
       local col = (sh.powder[shotId] <= 0) and CO.grayD or (i == sh.sub and CO.gold or CO.white)
       font.drawText((i == sh.sub and '>' or ' ') .. label, bx + 6, by + 14 + i * 12, col, 1)
-      font.drawText(minDmg .. '-' .. maxDmg, bx + bw - 6, by + 14 + i * 12, col, 1, 'right')
+      if shotId == sb.foe.weak then
+        sprites.draw('mini_weak', bx + 6 + font.textWidth('>' .. label, 1) + 3, by + 13 + i * 12)
+      end
+      font.drawText(minDmg .. '-' .. maxDmg, bx + bw - 6, by + 14 + i * 12,
+        shotId == sb.foe.weak and (sh.powder[shotId] <= 0 and col or CO.gold) or col, 1, 'right')
     end
     local desc = ({
       round = 'PLAIN HULL DAMAGE',
@@ -157,8 +169,11 @@ local function drawShotMenu(sb, sh, h)
       local shotData = data.SHOTS[shotId]
       local minDmg, maxDmg = shipRules.getShotPreview(sh, sb.foe, shotId)
       local col = (sh.powder[shotId] <= 0) and CO.grayD or (pi == sh.sub and h.col or CO.white)
-      font.drawText((pi == sh.sub and '>' or ' ') .. shotData.label .. ' x' .. shotPowder(sh, shotId) .. ' ' .. minDmg .. '-' .. maxDmg,
-        h.x, 163 + row * 8, col, 1)
+      local rowText = (pi == sh.sub and '>' or ' ') .. shotData.label .. ' x' .. shotPowder(sh, shotId) .. ' ' .. minDmg .. '-' .. maxDmg
+      font.drawText(rowText, h.x, 163 + row * 8, col, 1)
+      if shotId == sb.foe.weak then
+        sprites.draw('mini_weak', h.x + font.textWidth(rowText, 1) + 3, 162 + row * 8)
+      end
     end
   end
 end
@@ -220,8 +235,10 @@ local function drawShipCommandMenu(sb, view, i, h)
         gfx.rectangle('fill', bx, 153, iw - 4, 14)
         if sel then ui.outline(bx, 153, iw - 4, 14, CO.gold) end
         local it = items[ii + 1]
-        local labelCol = not it.ok and CO.grayD or (sel and CO.gold or CO.white)
-        font.drawText(it.label, bx + (iw - 4) / 2, 158, labelCol, 1, 'center')
+        local labelCol = not it.ok and (sel and CO.gray or CO.grayD) or (sel and CO.gold or CO.white)
+        local icon = MENU_ICON[it.id]
+        if icon then sprites.draw(icon, bx + 2, 154, false, 1, it.ok and 1 or 0.4) end
+        font.drawText(it.label, bx + 16, 158, labelCol, 1)
       end
       font.drawText(items[sh.menu + 1].desc, VW / 2, 171, CO.gray, 1, 'center')
     else
@@ -279,7 +296,7 @@ local function drawShips(sb, shipXY, gt)
     local bob = util.round(math.sin(gt * 2.3 + i) * 1.5)
     sprites.draw(sprites.shipSprite(game.colorOf(i == 1 and 'p1' or 'p2')), x, y + bob, false, 2)
     if sh.dodge > 0 then font.drawTextO('*', x + 14, y - 4 + bob, CO.foam, 2) end
-    if sh.patched then font.drawTextO('~', x + 14, y - 4 + bob, CO.orange, 2) end
+    if sh.patched then font.drawTextO('~', x + 14 + (sh.dodge > 0 and 12 or 0), y - 4 + bob, CO.orange, 2) end
   end
   return fpx, fpy, bobF
 end
@@ -298,9 +315,10 @@ local function drawIntent(sb, shipXY, fpx, fpy, bobF)
   end
   if iconName then ui.drawIntentIcon(iconName, tx + 2, ty - 22 + (sb.fleet and 0 or bobF), 1, intentCol) end
   if label then
-    local w = font.textWidth(label, 1)
-    local lx = util.clamp(tx + 16, w / 2 + 2, VW - w / 2 - 2)
-    font.drawTextO(label, lx, ty - 34, intentCol or CO.white, 1, 'center')
+    -- Fixed under the weakness badge: the over-ship icon marks the target,
+    -- and the same icon repeats here so the corner label pairs with it.
+    if iconName then ui.drawIntentIcon(iconName, VW - 18, 44, 1, intentCol) end
+    font.drawTextO(label, VW - 22, 48, intentCol or CO.white, 1, 'right')
   end
 end
 
@@ -317,38 +335,45 @@ end
 local function drawPlayerBars(sb)
   if sb.fleet then
     for i, sh in ipairs(sb.ships) do
-      local by = i == 1 and 6 or 24
+      -- 28, not 24: a row is 21px tall (title, bar, pips + shadow), so a
+      -- tighter pitch runs row 1's repair pips into row 2's title.
+      local by = i == 1 and 6 or 28
       local col = i == 1 and CO.gold or CO.green
       local hpText = sh.hp .. '/' .. sh.max
-      font.drawText((i == 1 and 'P1 SHIP' or 'P2 SHIP') .. (sh.patched and ' (PATCHING)' or ''), 6, by, col, 1)
+      font.drawTextO((i == 1 and 'P1 SHIP' or 'P2 SHIP') .. (sh.patched and ' (PATCHING)' or ''), 6, by, col, 1)
       ui.drawBar(6, by + 7, 70, 6, sh.hp / sh.max)
-      font.drawText(hpText, 80, by + 7, CO.white, 1)
+      font.drawTextO(hpText, 80, by + 7, CO.white, 1)
       drawRepairPips(sh, 6, by + 15)
       drawStatusLeft(sh, 80 + font.textWidth(hpText, 1) + 4, by + 7)
     end
   else
     local sh = sb.ships[1]
     local hpText = sh.hp .. '/' .. sh.max
-    font.drawText('YOUR SHIP', 6, 6, CO.white, 1)
+    font.drawTextO('YOUR SHIP', 6, 6, CO.white, 1)
     ui.drawBar(6, 13, 90, 6, sh.hp / sh.max)
-    font.drawText(hpText, 100, 13, CO.white, 1)
+    font.drawTextO(hpText, 100, 13, CO.white, 1)
     drawRepairPips(sh, 6, 21)
     drawStatusLeft(sh, 100 + font.textWidth(hpText, 1) + 4, 13)
   end
 end
 
 local function drawFoeBar(sb)
-  font.drawText(foeHeader(sb.foe, sb.isBoss), VW - 6, 6, CO.white, 1, 'right')
+  font.drawTextO(foeHeader(sb.foe, sb.isBoss), VW - 6, 6, CO.white, 1, 'right')
   ui.drawBar(VW - 96, 13, 90, 6, sb.foe.hp / sb.foe.max)
   local hpText = sb.foe.hp .. '/' .. sb.foe.max
   local hpW = font.textWidth(hpText, 1)
-  font.drawText(hpText, VW - 102, 13, CO.white, 1, 'right')
+  font.drawTextO(hpText, VW - 102, 13, CO.white, 1, 'right')
   local lvText = 'LV ' .. sb.foe.lv
   local lvX = VW - 102 - hpW - 6
-  font.drawText(lvText, lvX, 13, CO.red, 1, 'right')
+  font.drawTextO(lvText, lvX, 13, CO.red, 1, 'right')
   drawFoeRepairPips(sb.foe)
   if sb.isBoss then drawBossKegs(sb.foe) end
   drawStatusRight(sb.foe, lvX - font.textWidth(lvText, 1) - 6, 13)
+  -- Weakness badge: the same shot icon appears gold-framed here and (as
+  -- mini_weak) beside the matching row in the shot menu, so the pairing
+  -- reads by symbol match. Reads live foe.weak — boss form swaps update it.
+  ui.drawIntentIcon(data.SHOTS[sb.foe.weak].icon, VW - 18, 29, 1, CO.gold)
+  font.drawTextO('WEAK[', VW - 22, 32, CO.white, 1, 'right')
 end
 
 function M.draw(sb, view)
