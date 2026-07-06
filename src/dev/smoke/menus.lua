@@ -76,6 +76,55 @@ return function(ctx, h)
   wait(1.0)
   shot('tailor')
 
+  -- SHOP tab (tl.tab defaults to 'shop' on enter, tailor.lua:66): buy an
+  -- affordable outfit, re-tap it for the OWNED bump, then an unaffordable
+  -- and a milestone-locked row. Rows are data.OUTFITS[2..9] in order
+  -- (tailor.lua's shopItems, line 24); row 0 = bandR (15G), row 1 = patch
+  -- (25G), rows 2-4 = straw/tri/parrot, row 5 = bandB (mile 3, no price).
+  local goldSnap = game.run.gold
+  local ownedSnap = { bandR = game.run.owned.bandR, patch = game.run.owned.patch, bandB = game.run.owned.bandB }
+  local hatsSnap = h.meta.data.hats.bandR
+  game.run.owned.bandR, game.run.owned.patch, game.run.owned.bandB = nil, nil, nil
+
+  -- (a) row 0, affordable: buying spends exactly its price and flags it owned.
+  game.run.gold = 15
+  tap('z')
+  wait(0.2)
+  expect(game.run.gold == 0 and game.run.owned.bandR, 'affordable outfit purchase did not spend gold and mark it owned')
+  shot('tailor-shop-bought')
+
+  -- (b) row 0 again: already OWNED, so a re-buy bumps with no gold change.
+  tap('z')
+  wait(0.2)
+  expect(game.run.gold == 0, 'buying an already-owned outfit should not change gold')
+
+  -- (c) row 1 (patch, 25G): NEED MORE GOLD bump, no purchase.
+  tap('down')
+  wait(0.15)
+  game.run.gold = 0
+  tap('z')
+  wait(0.2)
+  expect(game.run.gold == 0 and not game.run.owned.patch, 'an unaffordable purchase should not deduct gold or mark it owned')
+
+  -- (d) row 5 (bandB, milestone-locked, no price): LOCKED bump, no purchase.
+  tap('down')
+  wait(0.1)
+  tap('down')
+  wait(0.1)
+  tap('down')
+  wait(0.1)
+  tap('down')
+  wait(0.1)
+  tap('z')
+  wait(0.2)
+  expect(game.run.gold == 0 and not game.run.owned.bandB, 'a milestone-locked row should not be purchasable with gold')
+  shot('tailor-shop-locked')
+
+  game.run.gold = goldSnap
+  game.run.owned.bandR, game.run.owned.patch, game.run.owned.bandB =
+    ownedSnap.bandR, ownedSnap.patch, ownedSnap.bandB
+  h.meta.data.hats.bandR = hatsSnap
+
   -- SAILS tab (color selector): a free mid-run re-pick at the tailor.
   tap('left')
   wait(0.2)
