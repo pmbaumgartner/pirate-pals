@@ -7,8 +7,8 @@
 -- CAPPY+FIN), which makes the first win's recruit card deterministic
 -- (rewards.lua guarantees it while #run.crew < 3).
 return function(ctx, h)
-  local wait, waitUntil, shot, expect =
-    ctx.wait, ctx.waitUntil, ctx.shot, ctx.expect
+  local wait, waitUntil, shot, expect, tap =
+    ctx.wait, ctx.waitUntil, ctx.shot, ctx.expect, ctx.tap
   local engine, game, timing, personBattle =
     h.engine, h.game, h.timing, h.personBattle
   local model, ai = h.pbModel, h.pbAi
@@ -83,6 +83,44 @@ return function(ctx, h)
   expect(run.blueprints.fire, 'blueprint_single did not award the fire blueprint')
   shot('loot-after-blueprint')
 
+  -- A2b: materialPool's remaining class branches (ship_rewards.lua splits
+  -- salvage material by foe.class) -- manowar and fireship, each another
+  -- quick 1-hp-grunt win walked generically. Resetting blueprints/sea5
+  -- before the second exercises blueprint_choice's >1-options arm (all
+  -- three shots unclaimed, ship_rewards.lua:88-89) instead of the
+  -- blueprint_single arm A2 just covered.
+  game.genSea(5, 'calm')
+  local foe2b = { lv = 5, name = 'IRON MANOWAR', class = 'manowar' }
+  run.sea.enemies = { foe2b }
+  local pb2b = bootBoarding(foe2b, { 'grunt' }, 'classic')
+  local grunt2b = foeOf(pb2b, 'grunt')
+  grunt2b.hp = 1
+  teleport(pb2b.units[1], freeNeighbor(pb2b, grunt2b.x, grunt2b.y))
+  ai.planFoeIntents()
+  palAttack(pb2b, pb2b.units[1], h.landTiming)
+  expect(pb2b.over, 'hit on a 1-hp grunt did not end the manowar battle')
+  h.walkLoot()
+
+  run.blueprints = {}
+  run.blueprintDrops.sea5 = false
+  game.genSea(5, 'calm')
+  local foe2c = { lv = 5, name = 'HELLFIRE HULK', class = 'fireship' }
+  run.sea.enemies = { foe2c }
+  local pb2c = bootBoarding(foe2c, { 'grunt' }, 'classic')
+  local grunt2c = foeOf(pb2c, 'grunt')
+  grunt2c.hp = 1
+  teleport(pb2c.units[1], freeNeighbor(pb2c, grunt2c.x, grunt2c.y))
+  ai.planFoeIntents()
+  palAttack(pb2c, pb2c.units[1], h.landTiming)
+  expect(pb2c.over, 'hit on a 1-hp grunt did not end the fireship battle')
+  local seen2c = {}
+  h.walkLoot(seen2c)
+  expect(seen2c.blueprint_choice,
+    'sea-5 win with reset blueprints did not offer the multi-option blueprint_choice')
+  expect(run.blueprints.grape and not (run.blueprints.chain or run.blueprints.fire),
+    "blueprint_choice's 2nd-option pick did not award grape alone")
+  shot('boarding-win-materials')
+
   -- A3: parry gauntlet on the crowsnest deck (has a perch tile) against a
   -- crab: damage-miss chip, foe-hit guard halving, SHELL, PERCH, and a
   -- perfect BLOCKED parry. Not played to an end; state is forced back to
@@ -146,20 +184,30 @@ return function(ctx, h)
   engine.setState('sail')
   wait(0.3)
 
-  -- A4: thief parrot arc — grab 5 gold, flee east, escape with it. The
-  -- escape empties the enemy side, so this is also a win with an empty
-  -- recruit pool (escaped thieves are never in pb.defeated).
+  -- A4: thief parrot arc — walks in from 2 tiles off (ai.lua's
+  -- walkTowardCo, not an on-the-spot grab), then grabs 5 gold, flees east,
+  -- and escapes with it. The escape empties the enemy side, so this is also
+  -- a win with an empty recruit pool (escaped thieves are never in
+  -- pb.defeated).
   run.gold = 30
   local foe4 = { lv = 2, name = 'SNEAKY WINGS', class = 'sloop' }
   run.sea.enemies = { foe4 }
   local pb4 = bootBoarding(foe4, { 'thief' }, 'classic')
   local thief = foeOf(pb4, 'thief')
   local c4, f4 = pb4.units[1], pb4.units[2]
-  teleport(thief, freeNeighbor(pb4, c4.x, c4.y))
+  local function tileAtDistance2(pb, tx, ty)
+    for _, off in ipairs({ { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 }, { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } }) do
+      local nx, ny = tx + off[1], ty + off[2]
+      if model.inDeck(nx, ny) and not model.unitAt(nx, ny) then return nx, ny end
+    end
+  end
+  local tx4, ty4 = tileAtDistance2(pb4, c4.x, c4.y)
+  expect(tx4 ~= nil, 'no tile at manhattan distance 2 from CAPPY for the thief walk-then-grab check')
+  teleport(thief, tx4, ty4)
   ai.planFoeIntents()
   palStay(pb4, c4)
   palStay(pb4, f4)
-  waitUntil(function() return thief.loot == 5 end, 10)
+  waitUntil(function() return thief.loot == 5 end, 15)
   partyPhase(pb4)
   expect(run.gold == 30, 'thief grab should not deduct gold before escaping')
 
@@ -176,6 +224,11 @@ return function(ctx, h)
   -- 3) KOs the last standing pal while the bar is deliberately ignored.
   -- Exercises checkEnd's loss branch, resolveNaps, and the captain-wake
   -- fallback when the whole party would nap.
+  -- boss_victory_port bought the SHIP'S COOK upgrade earlier in the walk;
+  -- at tier 1+ each KO'd pal has a 30% chance to skip its nap, which would
+  -- make the whole-party-naps setup (and its captain-wake assert) flaky.
+  local cookBefore = h.meta.data.upgrades.cook
+  h.meta.data.upgrades.cook = 0
   local foe5 = { lv = 4, name = 'BIG BRUTE', class = 'brig' }
   local pb5 = bootBoarding(foe5, { 'brute' }, 'classic')
   local brute = foeOf(pb5, 'brute')
@@ -192,6 +245,7 @@ return function(ctx, h)
   expect(#run.party >= 1 and run.party[1].role == 'captain',
     'captain-wake fallback did not keep the captain in the party')
   shot('boarding-loss')
+  h.meta.data.upgrades.cook = cookBefore
   -- The loss napped the crew; restore a sane party for the sections after.
   for _, p in ipairs(run.crew) do p.nap = nil end
   run.party = { run.crew[1], run.crew[2] }
@@ -199,7 +253,6 @@ return function(ctx, h)
   -- A6: the King's chained bars and hazard tiles. Bar break refills hp and
   -- enrages; an injected hazard detonates on the next foe phase. SLAM is
   -- RNG-gated so it gets rage stacked in its favor but no hard assert.
-  local oldVoyageSea = run.voyage.sea
   run.voyage.sea = 8
   game.genSea(8)
   run.party = { run.crew[1], run.crew[2] }
@@ -232,9 +285,45 @@ return function(ctx, h)
   waitUntil(function() return pb6.phase == 'party' or timing.on end, 25)
   if timing.on then h.landTimingPerfect() end
   partyPhase(pb6)
-  engine.setState('sail')
+
+  -- Play the King down through his remaining bars: bar 2 -> bar 1 (refill +
+  -- more rage), then bar 1 -> KO, which routes into the real boss-victory
+  -- branch of model.checkEnd (isBoss -> victory.start()).
+  for i = 1, 2 do
+    king.hp = 1
+    local barsBefore = king.bars
+    palAttack(pb6, c6, h.landTiming)
+    if pb6.over then
+      expect(i == 2, "the King was defeated before working through all of his bars")
+    else
+      expect(king.bars == barsBefore - 1 and king.hp == king.max,
+        'hit on a 1-hp King bar did not break into the next bar')
+      -- FIN stays so the round closes and the King gets his own turn; any
+      -- counterattack is perfect-parried with the same timing-guard loop
+      -- used above.
+      palStay(pb6, f6)
+      waitUntil(function() return pb6.phase == 'party' or timing.on end, 25)
+      if timing.on then h.landTimingPerfect() end
+      partyPhase(pb6)
+    end
+  end
+  expect(pb6.over, "attacking through all of the King's bars did not end the battle")
+  shot('king-defeated')
+
+  -- Victory -> Home Port. boss_victory_port.lua already exercises the meta
+  -- banking asserts (voyagesWon == 1 there); this run only needs to land
+  -- back on a clean state for whatever the driver runs next.
+  waitUntil(function() return engine.cur == 'victory' end, 10)
+  h.settle() -- the VICTORY! iris swallows input until it finishes
   wait(0.3)
-  run.voyage.sea = oldVoyageSea
+  tap('z')
+  h.settle()
+  expect(engine.cur == 'port', "expected the King's defeat to continue into Home Port")
+
+  -- newGame() rebuilds game.run from scratch (the `run` local above is now
+  -- stale, and nothing below this line uses it), landing back on the same
+  -- solo CAPPY+FIN roster this module started from.
+  game.newGame()
   game.genSea(3, 'calm')
   engine.setState('sail')
   wait(0.3)

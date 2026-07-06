@@ -55,42 +55,43 @@ return function(ctx, h)
     expect(game.run.gold > goldBefore, 'opening the chest did not add gold')
   end
 
-  -- 2/3. Bottle and trader share one event-tile slot per sea, so regen
-  -- until both have turned up at least once.
-  local sawBottle, sawTrader = false, false
-  for _ = 1, 6 do
-    if sawBottle and sawTrader then break end
-    game.run.quest = nil
-    game.run.gold = 40
-    game.genSea(3, 'calm')
+  -- Deterministic variant of stageTile: regen once via genFn, then convert a
+  -- water tile into `tt` directly (arrival handlers key off the tile type
+  -- alone, so a planted tile behaves exactly like a spawned one).
+  local function plantTile(tt, genFn)
+    genFn()
     engine.setState('sail')
     wait(0.3)
     game.run.sea.enemies = {}
-
-    if not sawBottle then
-      local bx, by = findTile(game.T_BOTTLE)
-      if bx and parkAdjacentTo(bx, by) then
-        tapCell(bx, by)
-        h.walkLoot()
-        expect(game.run.quest ~= nil, 'finding the bottle did not set a quest')
-        sawBottle = true
+    local ship = game.run.ship
+    for y = 0, game.SEA_H - 1 do
+      for x = 0, game.SEA_W - 1 do
+        if game.tileAt(x, y) == game.T_WATER and not (x == ship.x and y == ship.y) then
+          game.setTile(x, y, tt)
+          if parkAdjacentTo(x, y) then return x, y end
+          game.setTile(x, y, game.T_WATER)
+        end
       end
     end
-
-    if not sawTrader then
-      local tx, ty = findTile(game.T_TRADER)
-      if tx and parkAdjacentTo(tx, ty) then
-        tapCell(tx, ty)
-        waitUntil(function() return engine.cur == 'loot' end, 10)
-        h.settle()
-        tap('z') -- buy option is the default choice when gold >= 15
-        h.walkLoot()
-        sawTrader = true
-      end
-    end
+    expect(false, 'no water tile with an open neighbor to plant tile type ' .. tt)
   end
-  expect(sawBottle, 'the bottle tile never spawned across 6 sea regens')
-  expect(sawTrader, 'the trader tile never spawned across 6 sea regens')
+
+  -- 2/3. Bottle and trader share one event-tile slot per sea, so plant each
+  -- deterministically instead of regenning until RNG deals both.
+  game.run.quest = nil
+  game.run.gold = 40
+  local bx, by = plantTile(game.T_BOTTLE, function() game.genSea(3, 'calm') end)
+  tapCell(bx, by)
+  h.walkLoot()
+  expect(game.run.quest ~= nil, 'finding the bottle did not set a quest')
+
+  game.run.gold = 40
+  local trx, try2 = plantTile(game.T_TRADER, function() game.genSea(3, 'calm') end)
+  tapCell(trx, try2)
+  waitUntil(function() return engine.cur == 'loot' end, 10)
+  h.settle()
+  tap('z') -- buy option is the default choice when gold >= 15
+  h.walkLoot()
 
   -- 4. X dig: a held quest for this sea places the X; digging clears it.
   local xx, xy = stageTile(game.T_X, function()
@@ -190,4 +191,112 @@ return function(ctx, h)
   tap('z')
   waitUntil(function() return engine.cur == 'sail' and not engine.trans.on end, 15)
   expect(game.run.voyage.sea == seaBefore + 1, 'sailing into the whirlpool did not advance the voyage')
+
+  -- 9. Solo enemy bump: tap a sea foe's own hex from next door. planRoute
+  -- (sail_map.lua) sets route.foe to the tapped enemy so routeStep's
+  -- interrupt check lets the hop land on it, and tryMove's foe branch
+  -- (sail_rules.lua) opens the ship-battle encounter chain -- a bump always
+  -- starts with the ship battle, never boarding directly.
+  local bumpFoe = nil
+  for _ = 1, 4 do
+    game.genSea(3, 'calm')
+    engine.setState('sail')
+    wait(0.3)
+    if game.run.sea.enemies[1] then bumpFoe = game.run.sea.enemies[1] end
+    if bumpFoe and parkAdjacentTo(bumpFoe.x, bumpFoe.y) then break end
+    bumpFoe = nil
+  end
+  expect(bumpFoe ~= nil, 'no sea foe with an open neighbor turned up in 4 sea regens')
+  if bumpFoe then
+    bumpFoe.t = 0
+    tapCell(bumpFoe.x, bumpFoe.y)
+    waitUntil(function() return engine.cur == 'shipBattle' end, 10)
+    shot('sail-bump')
+    engine.setState('sail')
+    h.settle()
+  end
+
+  -- 10. Island bump: tryMove's blocked arm (sail_rules.lua). 'left'/'right'
+  -- hops are unambiguous (+-1 on x, no facing-dependent diagonal), so park
+  -- one hex to either side of an isle and press straight into it.
+  local function findIsleBumpCase()
+    for y = 0, game.SEA_H - 1 do
+      for x = 0, game.SEA_W - 1 do
+        if game.tileAt(x, y) == game.T_ISLE then
+          if x + 1 < game.SEA_W and game.tileAt(x + 1, y) == game.T_WATER and not game.enemyAt(x + 1, y) then
+            return x + 1, y, 'left'
+          end
+          if x - 1 >= 0 and game.tileAt(x - 1, y) == game.T_WATER and not game.enemyAt(x - 1, y) then
+            return x - 1, y, 'right'
+          end
+        end
+      end
+    end
+  end
+  local isleSx, isleSy, isleDir = nil, nil, nil
+  for _ = 1, 4 do
+    game.genSea(3, 'calm')
+    engine.setState('sail')
+    wait(0.3)
+    game.run.sea.enemies = {}
+    isleSx, isleSy, isleDir = findIsleBumpCase()
+    if isleSx then break end
+  end
+  expect(isleSx ~= nil, 'no island turned up a straight left/right bump case in 4 sea regens')
+  if isleSx then
+    local ship = game.run.ship
+    ship.x, ship.y, ship.fx, ship.fy = isleSx, isleSy, isleSx, isleSy
+    ship.route, ship.anim = nil, nil
+    local px2, py2 = ship.x, ship.y
+    tap(isleDir)
+    wait(0.3)
+    shot('sail-island-bump')
+    expect(ship.x == px2 and ship.y == py2, 'bumping an island moved the ship instead of blocking it')
+  end
+
+  -- 11. Last-sea gossip: arriving at the port on the voyage's second-to-last
+  -- sea (the index sail_rules.lua's handleArrival checks) shows the one-time
+  -- gossip card -- and a bundled fire blueprint if it isn't already known --
+  -- before continuing into dock instead of straight back to sail.
+  game.run.gossipShown = false
+  local lastSea = (game.run.voyage.length or 8) - 1
+  local gpx, gpy = stageTile(game.T_PORT, function() game.genSea(lastSea, 'calm') end, 4)
+  expect(gpx ~= nil, 'no port with an open neighbor turned up in 4 sea regens for the last-sea gossip')
+  if gpx then
+    tapCell(gpx, gpy)
+    waitUntil(function() return engine.cur == 'loot' end, 10)
+    h.settle()
+    shot('sail-gossip')
+    for _ = 1, 5 do
+      if engine.cur ~= 'loot' then break end
+      tap('z')
+      wait(0.35)
+    end
+    waitUntil(function() return engine.cur == 'dock' and not engine.trans.on end, 10)
+    expect(game.run.gossipShown, 'arriving at port on the last sea did not show the gossip card')
+    tap('x') -- back to sea (dock.lua's BACK TO SEA/B share the same exit)
+    waitUntil(function() return engine.cur == 'sail' end, 10)
+  end
+
+  -- 12. Kind-trader gift: too poor to buy (gold < 15) and no spare treasure
+  -- to sell (>= 2 of a kind) collapses the two-way trade card into a plain
+  -- +10 gold gift (sail_rules.lua's meetTrader).
+  game.run.quest = nil
+  game.run.gold = 5
+  game.run.treas = {}
+  local tgx, tgy = plantTile(game.T_TRADER, function() game.genSea(3, 'calm') end)
+  if tgx then
+    local goldBefore = game.run.gold
+    tapCell(tgx, tgy)
+    waitUntil(function() return engine.cur == 'loot' end, 10)
+    h.settle()
+    shot('sail-trader-gift')
+    h.walkLoot()
+    expect(game.run.gold == goldBefore + 10, 'a broke trader meeting did not grant the flat +10 gold gift')
+  end
+
+  -- Leave on a normal, clean sea for whatever runs after this module.
+  game.genSea(3, 'calm')
+  engine.setState('sail')
+  wait(0.3)
 end
