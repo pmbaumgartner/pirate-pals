@@ -40,3 +40,40 @@ jobs:
           name: smoke-shots
           path: ~/.local/share/love/pirate-pals/*.png
           if-no-files-found: warn
+
+  package:
+    needs: [luacheck, unit-tests, smoke]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win64
+            artifact: pirate-pals-windows
+          - target: macos
+            artifact: pirate-pals-macos
+          - target: appimage
+            artifact: pirate-pals-linux-steam-deck
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install makelove
+        run: python -m pip install "setuptools==70.0.0" makelove
+      - name: Build ${{ matrix.target }}
+        run: makelove ${{ matrix.target }}
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+      - name: Preserve executable artifact
+        if: matrix.target == 'appimage'
+        run: |
+          chmod +x build/appimage/*.AppImage
+          tar -C build/appimage -czf build/${{ matrix.artifact }}.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            build/${{ matrix.target }}/*.zip
+            build/${{ matrix.artifact }}.tar.gz
+          if-no-files-found: error

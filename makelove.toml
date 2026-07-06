@@ -1,5 +1,6 @@
 name = "Pirate Pals"
-default_targets = ["love", "win64", "macos"]
+love_version = "11.4"
+default_targets = ["win64", "macos"]
 build_directory = "build"
 love_files = [
     "+main.lua",
@@ -9,3 +10,6 @@ love_files = [
 
 [windows]
 exe_metadata = { FileDescription = "Pirate Pals", ProductName = "Pirate Pals" }
+
+[appimage]
+artifacts = "appimage"
