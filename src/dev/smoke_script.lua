@@ -10,12 +10,62 @@ local data = require 'src.data'
 local meta = require 'src.meta'
 local grid = require 'src.grid'
 local input = require 'src.input'
+local timing = require 'src.timing'
 local shipBattle = require 'src.states.ship_battle'
 local personBattle = require 'src.states.person_battle'
 local loot = require 'src.states.loot'
 local chart = require 'src.states.chart'
 local palette = require 'src.palette'
 local CO = palette.CO
+
+local function shipBattleReady(sbNow, turn, timeout)
+  waitUntil(function()
+    return engine.cur == 'shipBattle'
+      and shipBattle.sb == sbNow
+      and (not turn or sbNow.turn == turn)
+      and not engine.trans.on
+      and not sbNow.co
+      and not sbNow.anim
+      and sbNow.wait <= 0
+      and not timing.on
+  end, timeout or 10)
+end
+
+local function landTiming(owner)
+  waitUntil(function() return timing.on end, 5)
+  waitUntil(function()
+    return not timing.on
+      or math.abs(timing.posAt(timing.t, timing.dur) - 0.5) <= (timing.good or 0.3) / 4
+  end, 5)
+  if timing.on then
+    if owner == 'p2' then tap2('a') else tap('z') end
+  end
+  waitUntil(function() return not timing.on end, 5)
+end
+
+local function startSmokeShipBattle(foe, slot)
+  game.run.fittings.slot = slot
+  shipBattle.start(foe)
+  local sbNow = shipBattle.sb
+  shipBattleReady(sbNow, sbNow.fleet and 'select' or 'you', 5)
+  return sbNow
+end
+
+local function fireSoloShot(sbNow, shotId)
+  sbNow.menu = 0
+  sbNow.submenu = nil
+  tap('z')
+  waitUntil(function() return sbNow.submenu == 'shot' end, 3)
+  if shotId ~= 'round' then tap('down') end
+  tap('z')
+  landTiming('p1')
+end
+
+local function chooseSoloShipAction(sbNow, menuIndex)
+  sbNow.menu = menuIndex
+  sbNow.submenu = nil
+  tap('z')
+end
 
 -- Title + mode select: walked via the real input path (not setState) before
 -- the deterministic run starts, so the title<->modeSelect wiring gets
@@ -119,6 +169,66 @@ sbTel.sub = 0
 wait(0.1)
 shot('ship-sub-desc')
 sbTel.submenu = nil
+
+-- Ship battle mechanics pass: these use the real menus, timing bars, cannon
+-- animation, impact handler, and foe-turn coroutine rather than only staging
+-- HUD state for screenshots.
+local sbChain = startSmokeShipBattle({ lv = 3, name = 'CHAIN SLOOP', class = 'sloop' }, 'chain')
+fireSoloShot(sbChain, 'chain')
+waitUntil(function() return sbChain.foe.sailsStage == -1 end, 5)
+expect(sbChain.ships[1].powder.chain == data.SHOTS.chain.powder - 1, 'CHAIN SHOT did not spend powder')
+shot('ship-chain-hit')
+
+local sbGrape = startSmokeShipBattle({ lv = 3, name = 'GRAPE BRIG', class = 'brig' }, 'grape')
+fireSoloShot(sbGrape, 'grape')
+waitUntil(function() return sbGrape.foe.gunsStage == -1 end, 5)
+expect(sbGrape.ships[1].powder.grape == data.SHOTS.grape.powder - 1, 'GRAPE SHOT did not spend powder')
+shot('ship-grape-hit')
+
+local sbFire = startSmokeShipBattle({ lv = 3, name = 'FIRE MAN-O-WAR', class = 'manowar' }, 'fire')
+fireSoloShot(sbFire, 'fire')
+waitUntil(function() return sbFire.foe.ablaze == 3 end, 5)
+expect(sbFire.ships[1].powder.fire == data.SHOTS.fire.powder - 1, 'FIRE SHOT did not spend powder')
+shot('ship-fire-ablaze')
+
+local sbKraken = startSmokeShipBattle({ lv = 9, name = 'THE KRAKEN', boss = true, kraken = true }, 'fire')
+expect(sbKraken.foe.class == 'kraken', 'kraken boss did not build the kraken ship state')
+shot('ship-kraken-ready')
+fireSoloShot(sbKraken, 'fire')
+expect(sbKraken.ships[1].powder.fire == data.SHOTS.fire.powder - 1, 'kraken FIRE SHOT did not spend powder')
+expect(not sbKraken.foe.ablaze, 'kraken should be immune to ablaze')
+shot('ship-kraken-immune')
+
+local sbAction = startSmokeShipBattle({ lv = 8, name = 'SMOKE KING', boss = true }, nil)
+local shAction = sbAction.ships[1]
+sbAction.foe.intent = 'bigshot'
+sbAction.foe.target = 1
+chooseSoloShipAction(sbAction, 1) -- MOVE
+waitUntil(function() return shAction.range == 'NEAR' and shAction.dodge > 0 end, 5)
+shot('ship-move-dodge')
+shipBattleReady(sbAction, 'you', 12)
+
+shAction.hp = math.max(1, shAction.max - 18)
+local hpBeforeFix = shAction.hp
+local repairsBeforeFix = shAction.repairs
+sbAction.foe.intent = 'fix'
+sbAction.foe.hp = math.max(1, sbAction.foe.max - 20)
+sbAction.foe.repairs = 1
+chooseSoloShipAction(sbAction, 2) -- FIX
+waitUntil(function() return shAction.hp > hpBeforeFix end, 5)
+expect(shAction.repairs == repairsBeforeFix - 1, 'FIX did not spend a repair pip')
+shot('ship-fix-action')
+shipBattleReady(sbAction, 'you', 12)
+
+sbAction.foe.intent = 'move'
+chooseSoloShipAction(sbAction, 3) -- SPECIAL
+waitUntil(function() return sbAction.submenu == 'special' end, 3)
+tap('z')
+waitUntil(function() return sbAction.specUsed[game.run.party[1].name] end, 5)
+shot('ship-special-action')
+shipBattleReady(sbAction, 'you', 12)
+
+game.run.fittings.slot = nil
 
 personBattle.start(game.run.sea.enemies[1])
 expect(engine.cur == 'personBattle', 'personBattle.start did not switch state')
@@ -593,7 +703,7 @@ game.run.sea.enemies = {}
 local sbT = shipBattle.sb
 local function fleetSettled()
   return not engine.trans.on and sbT.turn == 'select' and not sbT.anim
-    and sbT.wait <= 0 and not require('src.timing').on
+    and sbT.wait <= 0 and not timing.on
 end
 waitUntil(fleetSettled, 5)
 
@@ -624,19 +734,49 @@ waitUntil(fleetSettled, 15) -- resolve both MOVEs + the foe turn
 expect(sbT.ships[1].chosen == nil and sbT.ships[2].chosen == nil,
   'fleet round did not clear chosen actions for the next select')
 
+-- A downed fleet ship auto-picks PATCH when P2 is idle, uses P2's timing
+-- owner, and rejoins when its patch counter expires.
+sbT.ships[2].patched = true
+sbT.ships[2].patchRounds = 1
+sbT.ships[2].hp = 0
+sbT.ships[2].chosen = nil
+sbT.ships[2].confirmOrder = nil
+sbT.p2AutoFire = false
+sbT.idleT = 999
+sbT.ships[1].menu = 1 -- MOVE
+sbT.ships[1].submenu = nil
+tap('z')
+waitUntil(function() return timing.on and timing.player == 'p2' end, 5)
+landTiming('p2')
+waitUntil(fleetSettled, 15)
+expect(sbT.p2AutoFire, 'idle P2 did not auto-pick for the patched fleet ship')
+expect(not sbT.ships[2].patched, 'patched fleet ship did not rejoin after its patch round')
+expect(sbT.ships[2].hp >= math.floor(sbT.ships[2].max * 0.4),
+  'rejoined fleet ship did not recover to its minimum hull')
+shot('fleet-patch-rejoin')
+sbT.p2AutoFire = false
+sbT.idleT = 0
+
 -- BROADSIDE: both captains on FIRE while both ships are NEAR arms the
 -- shared two-marker bar, once per battle.
 sbT.ships[1].range, sbT.ships[2].range = 'NEAR', 'NEAR'
 sbT.idleT = 0
-tap('a') -- P1 menu: MOVE -> back to FIRE
+for _, sh in ipairs(sbT.ships) do
+  sh.patched = false
+  sh.patchRounds = 0
+  sh.hp = math.max(sh.hp, math.floor(sh.max * 0.8))
+  sh.chosen = nil
+  sh.confirmOrder = nil
+  sh.menu = 0 -- FIRE
+  sh.submenu = nil
+end
 tap('z') -- open P1 fire submenu
 tap('z') -- lock in ROUND SHOT
 wait(0.1)
 expect(sbT.ships[1].chosen == 'fire_round', 'P1 did not lock in FIRE')
-tap2('left')
 tap2('a') -- open P2 fire submenu
 tap2('a') -- lock in ROUND SHOT
-waitUntil(function() return require('src.timing').coopMode or sbT.over end, 5)
+waitUntil(function() return timing.coopMode or sbT.over end, 5)
 expect(sbT.broadsideUsed, 'both FIRE at NEAR did not arm BROADSIDE')
 shot('broadside')
 tap('z') -- both captains press the shared bar
