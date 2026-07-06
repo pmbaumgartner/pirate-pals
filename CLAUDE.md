@@ -21,6 +21,7 @@ Run commands from the repo root.
 - Keep dev-flag and script failures on the `FAIL: <msg>` plus nonzero-exit path, not uncaught LÖVE errors, because the interactive error screen can hang headless runs.
 - If sea hex layout constants in `src/states/sail.lua` change, update `src/dev/script.lua`'s `tapCell` math so scripted sea taps still hit cells.
 - Under `--live`, `love.filesystem` merges the save dir into the root; keep lurker reloads limited to `main.lua` and first-party `src/` files.
+- Coverage: wrap only code that cannot execute under a headless scripted run (hardware-input surfaces, dev-only tooling inside included files) in `-- luacov: disable` / `-- luacov: enable` markers; co-op/captains code and rare-gameplay branches stay counted as real gaps.
 
 ## Code Conventions
 

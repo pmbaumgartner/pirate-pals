@@ -19,6 +19,7 @@
 -- LÖVE sets the `arg` global before this file runs, so a coverage init here
 -- (ahead of the requires below) sees every top-level module chunk; parsing
 -- flags in love.load happens after those chunks already ran uncovered.
+-- luacov: disable
 local coverageOn = false
 for _, a in ipairs(arg or {}) do
   if a == '--coverage' then coverageOn = true end
@@ -29,6 +30,7 @@ if coverageOn then
     love.filesystem.getRequirePath() .. ';src/lib/?.lua;src/lib/?/init.lua')
   require('luacov.runner').init() -- reads .luacov from the repo-root cwd
 end
+-- luacov: enable
 
 local util = require 'src.util'
 local palette = require 'src.palette'
@@ -63,9 +65,11 @@ local function computeScale()
   oy = math.floor((h - VH * s) / 2)
 end
 
+-- luacov: disable
 local function toCanvas(x, y)
   return (x - ox) / scale, (y - oy) / scale
 end
+-- luacov: enable
 
 -- `--key=value` and bare `--key` flags, e.g. {seed='7', speed='8', dev=true}.
 local function parseFlags(args)
@@ -123,6 +127,7 @@ function love.load(args)
   computeScale()
   engine.setState('title')
 
+  -- luacov: disable
   if flags.warp then
     -- LÖVE's default error handler shows an interactive "press a key to
     -- quit" screen rather than exiting, which would hang forever under
@@ -146,6 +151,7 @@ function love.load(args)
       return not (f == 'main.lua' or (f:match('^src/') and not f:match('^src/lib/')))
     end
   end
+  -- luacov: enable
 
   if flags.script then
     devScript = require 'src.dev.script'
@@ -154,6 +160,7 @@ function love.load(args)
     devScript.load(flags.script)
   end
 
+  -- luacov: disable
   if flags.warp and flags.shot then
     local frames = {}
     if flags.frames then
@@ -166,6 +173,7 @@ function love.load(args)
     local name = (flags.shot ~= true and flags.shot) or flags.warp
     shotCfg = { name = name, frames = frames, idx = 1, count = 0 }
   end
+  -- luacov: enable
 end
 
 -- One logic step; love.update calls this speedN times per rendered frame
@@ -186,6 +194,7 @@ local function tick(dt)
   audio.update(dt)
   if devScript then devScript.update(dt) end
 
+  -- luacov: disable
   if shotCfg then
     shotCfg.count = shotCfg.count + 1
     if shotCfg.pendingName then
@@ -202,6 +211,7 @@ local function tick(dt)
       shotCfg.pendingName = fname
     end
   end
+  -- luacov: enable
 end
 
 function love.update(dt)
@@ -233,10 +243,12 @@ function love.draw()
   input.drawTouchUI()
   engine.drawTrans()
 
+  -- luacov: disable
   if devJump then
     font.drawTextO('JUMP TO SEA LV ' .. devJump.n, VW / 2, VH - 22, CO.gold, 1, 'center')
     font.drawTextO('UP/DOWN CHANGE  Z GO  X CANCEL', VW / 2, VH - 14, CO.gray, 1, 'center')
   end
+  -- luacov: enable
 
   gfx.setCanvas()
 
@@ -253,6 +265,7 @@ end
 
 -- --dev cheat panel (0.6): F1-F7 tweak the run in place, F9/F10 snapshot
 -- and restore it in memory (instant "retry that battle with this crew").
+-- luacov: disable
 function love.keypressed(key)
   if flags.dev and devJump then
     if key == 'up' then devJump.n = devJump.n + 1
@@ -339,11 +352,14 @@ end
 function love.joystickremoved(js)
   input.joystickremoved(js)
 end
+-- luacov: enable
 
 function love.quit()
+  -- luacov: disable
   if flags.dump then
     require('src.dev.dump').dump()
   end
+  -- luacov: enable
   if coverageOn then
     require('luacov.runner').shutdown() -- saves stats + writes report
   end

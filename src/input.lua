@@ -108,12 +108,14 @@ function M.promptKey(ctx, action)
   local player = ctx.player
   local sources = player.config.controls[action]
   if not sources then return '?' end
+  -- luacov: disable
   if player:getActiveDevice() == 'joy' then
     for _, src in ipairs(sources) do
       local b = src:match('^button:(.+)$')
       if b then return b:upper() end
     end
   end
+  -- luacov: enable
   for _, src in ipairs(sources) do
     local k = src:match('^key:(.+)$')
     if k then return k:upper() end
@@ -152,12 +154,14 @@ function M.keyreleased(_key) end
 function M.pointerDown(id, cx, cy, isTouch)
   if isTouch then M.touchUI = true end
   local hit = nil
+  -- luacov: disable
   for _, t in ipairs(TBTN) do
     if cx >= t.x and cx < t.x + t.w and cy >= t.y and cy < t.y + t.h then
       hit = t.n
       break
     end
   end
+  -- luacov: enable
   if not hit then
     hit = 'a'
     pendingTap = { x = cx, y = cy }
@@ -177,6 +181,7 @@ end
 -- Device assignment: first joystick connected -> P1, second -> P2. Wired
 -- from main.lua's love.joystickadded/removed so slots survive an
 -- unrelated pad's getJoysticks() index shifting on removal.
+-- luacov: disable
 function M.joystickadded(js)
   if M.jsSlot[1] == nil then M.jsSlot[1] = js
   elseif M.jsSlot[2] == nil then M.jsSlot[2] = js end
@@ -198,6 +203,7 @@ function M.scanJoysticks()
     M.joystickadded(js)
   end
 end
+-- luacov: enable
 
 local function updateCtx(ctx, dt)
   ctx.player:update()
@@ -241,6 +247,7 @@ end
 function M.moveVector(useRepeat) return M.p1.moveVector(useRepeat) end
 function M.moveDir(useRepeat) return M.p1.moveDir(useRepeat) end
 
+-- luacov: disable
 function M.drawTouchUI()
   if not M.touchUI then return end
   for _, t in ipairs(TBTN) do
@@ -264,5 +271,6 @@ function M.drawTouchUI()
   font.drawText('A', TBTN[5].x + 12, TBTN[5].y + 12, CO.white, 1)
   font.drawText('B', TBTN[6].x + 9, TBTN[6].y + 9, CO.white, 1)
 end
+-- luacov: enable
 
 return M
