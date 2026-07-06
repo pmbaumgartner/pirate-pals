@@ -14,6 +14,22 @@
 --   --dump                dump game.run + battle state to stdout at quit
 --   --dev                 enable the F1-F10 cheat panel and Tab-hold 4x speed
 --   --live                hot-reload changed source files (src/lib/lurker.lua)
+--   --coverage            record LuaCov line coverage (luacov.report.out)
+
+-- LÖVE sets the `arg` global before this file runs, so a coverage init here
+-- (ahead of the requires below) sees every top-level module chunk; parsing
+-- flags in love.load happens after those chunks already ran uncovered.
+local coverageOn = false
+for _, a in ipairs(arg or {}) do
+  if a == '--coverage' then coverageOn = true end
+end
+if coverageOn then
+  jit.off() -- also flushes compiled traces, which never fire line hooks
+  love.filesystem.setRequirePath(
+    love.filesystem.getRequirePath() .. ';src/lib/?.lua;src/lib/?/init.lua')
+  require('luacov.runner').init() -- reads .luacov from the repo-root cwd
+end
+
 local util = require 'src.util'
 local palette = require 'src.palette'
 local font = require 'src.font'
@@ -327,5 +343,8 @@ end
 function love.quit()
   if flags.dump then
     require('src.dev.dump').dump()
+  end
+  if coverageOn then
+    require('luacov.runner').shutdown() -- saves stats + writes report
   end
 end

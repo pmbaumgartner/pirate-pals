@@ -1,0 +1,8 @@
+-- LuaCov config (make smoke-cov / make test-cov). Patterns match chunk
+-- names with the '.lua' stripped; unanchored so both LÖVE ('src/x.lua')
+-- and unit-test ('./src/x.lua') chunk names match.
+return {
+  include = { '^main$', 'src/' },
+  exclude = { 'src/lib/' },
+  runreport = true,
+}
