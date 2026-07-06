@@ -1,5 +1,5 @@
 -- Plain-Lua unit tests for src/timing.lua's two-player "BOTH PRESS!" mode
--- (2.4). Run from the project root: `lua tests/timing_coop_test.lua`.
+-- Run from the project root: `lua tests/timing_coop_test.lua`.
 package.path = './?.lua;' .. package.path
 love = { graphics = {} } -- font.lua indexes love.graphics at require time
 local timing = require 'src.timing'

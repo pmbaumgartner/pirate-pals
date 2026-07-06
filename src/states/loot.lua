@@ -29,9 +29,9 @@ local function partSfx(part)
   elseif part.type == 'clear' then SFX.bigwin() end
 end
 
--- Interactive cards about a specific pal take that pal's owner's input
--- (C5): your pal's perk, your pick. Everything else stays advanceable by
--- either player via the input shim.
+-- Interactive cards about a specific pal take that pal's owner's input:
+-- your pal's perk, your pick. Everything else stays advanceable by either
+-- player via the input shim.
 local function cardCtx(pirate)
   if not game.isCoop() then return input end
   return game.ownerOf(pirate) == 'p2' and input.p2 or input.p1
@@ -127,7 +127,7 @@ engine.states.loot = {
         advance()
       end
     elseif part.type == 'trade' then
-      -- Friendly trader (4.2): one fair swap, gold <-> treasure. The gained
+      -- Friendly trader: one fair swap, gold <-> treasure. The gained
       -- side is inserted as the next card so the reward is shown, not told.
       if input.jp('left') or input.jp('right') then
         part.choice = part.choice == 1 and 2 or 1
@@ -227,7 +227,7 @@ engine.states.loot = {
       if legend then
         font.drawText('* LEGEND *', bx + bw - 4, by + 4, CO.gold, 1, 'right')
       end
-      -- Show who gets them (C1/C5): the receiving captain's face.
+      -- Show who gets them: the receiving captain's face.
       if game.isCoop() and #game.run.party < game.partyCap() then
         local owner = game.nextOwner()
         local col = owner == 'p2' and CO.green or CO.gold

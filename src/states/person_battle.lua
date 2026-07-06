@@ -2,7 +2,7 @@
 -- Player phase is a cursor-driven pick/move/act/target flow; every attack
 -- and parry runs through the timing-bar minigame. Crates give cover.
 --
--- Co-op (2.3 / C4): interaction state is per-player (pb.pl.p1/p2 — cursor,
+-- Co-op: interaction state is per-player (pb.pl.p1/p2 — cursor,
 -- selection, menu, stage), so both cursors are live at once, each locked to
 -- its owner's pals. Authoritative battle state (units, walk, wait, queue,
 -- hazards, foe turn) stays top-level and single-threaded: one resolution
@@ -465,7 +465,7 @@ function M.startBoss(foe)
       acted = false, guard = false, buff = 0, alive = true, specUsed = false,
     }
   end
-  -- Golden Compass rematch (5.3): sea 9's kraken reuses the King's fight
+  -- Golden Compass rematch: sea 9's kraken reuses the King's fight
   -- with a stat bump, no new art required yet — the treasure-log payoff is
   -- "tougher, named differently", not a whole new boss kit.
   local kr = data.EROLES.king

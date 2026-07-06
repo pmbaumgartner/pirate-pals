@@ -1,4 +1,4 @@
--- Sprite gallery (0.8): every base sprite plus every role x hat combo, for
+-- Sprite gallery: every base sprite plus every role x hat combo, for
 -- instant art review (`--warp=gallery --shot`) after a sprites.lua change.
 -- Dev-only: lives under src/dev/ (not src/states/) and is required lazily by
 -- scenarios.lua's 'gallery' entry, never in the default require graph.

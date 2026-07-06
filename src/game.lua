@@ -15,13 +15,14 @@ local M = {}
 M.meta = meta
 
 M.SAVE_PATH = 'save.lua'
+M.SAVE_VERSION = 2
 
 -- Sea layout: SEA_W x SEA_H cells drawn below a HUD strip SEA_TOP px tall.
 -- The sea is an odd-r hex grid (see grid.lua); 19 columns because odd rows
 -- shift right half a cell and 19 * 16 + 8 still fits the 320 px canvas.
 M.SEA_W, M.SEA_H, M.SEA_TOP = 19, 9, 20
 M.T_WATER, M.T_ISLE, M.T_CHEST, M.T_PORT, M.T_EXIT = 0, 1, 2, 3, 4
--- Event tiles (4.2): message-in-a-bottle, friendly trader, and the
+-- Event tiles: message-in-a-bottle, friendly trader, and the
 -- treasure-map X a bottle marks on a later sea.
 M.T_BOTTLE, M.T_TRADER, M.T_X = 5, 6, 7
 
@@ -47,13 +48,13 @@ function M.statsOf(p)
   return st
 end
 
--- Tuckered-out pals (3.1): napping is always temporary and never blocks the
+-- Tuckered-out pals: napping is always temporary and never blocks the
 -- captain from sailing (see resolveNaps in person_battle.lua).
 function M.isNapping(p)
   return p.nap ~= nil and p.nap > 0
 end
 
--- Best Mates (3.4): sorted so the pair key is order-independent.
+-- Best Mates: sorted so the pair key is order-independent.
 function M.bondKey(a, b)
   if a > b then a, b = b, a end
   return a .. '|' .. b
@@ -162,14 +163,14 @@ function M.enemyAtList(list, x, y)
   return nil
 end
 
--- Enemy scaling never reads past the voyage length, so future Voyage+ tiers
--- (Phase 5) that push sea numbers beyond it don't quietly keep buffing foes.
+-- Enemy scaling never reads past the voyage length, so Voyage+ tiers that
+-- push sea numbers beyond it don't quietly keep buffing foes.
 function M.scaleLv(lv)
   if M.run and M.run.voyage then return math.min(lv, M.run.voyage.length) end
   return lv
 end
 
--- Biome for a fresh sea (4.1): sea 1 and the boss sea are always calm;
+-- Biome for a fresh sea: sea 1 and the boss sea are always calm;
 -- everything between draws from the pool (calm included, so plain seas keep
 -- showing up). The chart pre-rolls this via run.nextBiome so the twist can
 -- be announced before the sea exists.
@@ -178,7 +179,7 @@ function M.rollBiome(lv)
   return util.pick(data.BIOME_POOL)
 end
 
--- Every new sea is one fewer sea of napping (3.1); this is the one place
+-- Every new sea is one fewer sea of napping; this is the one place
 -- "entering a new sea" happens for both normal play and --warp jumps.
 local function ageCrewNaps()
   for _, p in ipairs(M.run.crew) do
@@ -258,7 +259,7 @@ local function placeIslands(t, spawn, exit)
   end
 end
 
--- Sea events (4.2): the quest X (if a bottle marked this sea) plus at most
+-- Sea events: the quest X (if a bottle marked this sea) plus at most
 -- one bottle/trader tile. Never on the boss sea. `questPlaced` tells the
 -- caller whether an outstanding quest X found a home this attempt.
 local function placeSpecials(t, spawn, lv, boss, placed)
@@ -294,7 +295,7 @@ local function placeEnemies(t, spawn, lv, boss, placed, biome)
   if boss then
     local bp = freeTile(t, spawn, 10, placed)
     if bp then
-      -- Golden Compass (5.3): a completed 12/12 treasure log permanently
+      -- Golden Compass: a completed 12/12 treasure log permanently
       -- extends the voyage to sea 9, a tougher rematch (see ship_battle's
       -- foeHp/startBoss scaling) closing the collection promise.
       local kraken = M.run.voyage and lv >= 9
@@ -346,7 +347,7 @@ local function seaReachable(t, spawn, exit, port, chests, specials, enemies, bos
   return #enemies >= (boss and 1 or 2)
 end
 
--- Icy twist (4.1): mark slick water hexes; entering one slides the ship an
+-- Icy twist: mark slick water hexes; entering one slides the ship an
 -- extra hex (see sail.lua). Sparse "x,y"-keyed set, plain data.
 local function buildSlick(t, spawn, biome)
   local slick = {}
@@ -454,7 +455,7 @@ function M.genSea(lv, biome)
   error('sea generation failed')
 end
 
--- Hats are meta-owned (5.1): buying/unlocking one persists across voyages.
+-- Hats are meta-owned: buying/unlocking one persists across voyages.
 -- run.owned stays the live table every draw/purchase call site already
 -- reads, kept in sync with meta.data.hats rather than replacing it.
 function M.unlockHat(id)
@@ -468,7 +469,7 @@ end
 function M.newGame(mode, colors)
   mode = mode or 'solo'
   M.run = {
-    version = 1,
+    version = M.SAVE_VERSION,
     mode = mode,
     colors = colors or { p1 = 'white', p2 = mode == 'captains' and 'green' or nil },
     gold = 0, treas = {}, owned = { none = true },
@@ -513,7 +514,7 @@ function M.newGame(mode, colors)
   M.genSea(1)
 end
 
--- New Voyage+ (5.3): a fresh run that keeps meta (upgrades/hats persist via
+-- New Voyage+: a fresh run that keeps meta (upgrades/hats persist via
 -- newGame() itself) but re-seeds the crew from whoever sailed the finished
 -- voyage — same names/roles, back to level 1 (attachment carries, power
 -- doesn't) — and carries their Best Mates bonds forward.
@@ -565,13 +566,13 @@ function M.isCoop()
   return M.run.mode == 'captains'
 end
 
--- Party cap is 3 solo, 4 in co-op (2.3) so P2 always has a pal of their own.
+-- Party cap is 3 solo, 4 in co-op so P2 always has a pal of their own.
 function M.partyCap()
   return M.isCoop() and 4 or 3
 end
 
--- Every pal has an owner (P1/P2) once co-op is on; defaults to P1 so solo
--- saves and pre-co-op crew need no migration.
+-- Every pal has an owner (P1/P2) once co-op is on; defaulting to P1 keeps
+-- solo callers from branching.
 function M.ownerOf(p)
   return M.run.owners[p.name] or 'p1'
 end
@@ -617,10 +618,10 @@ function M.ownedOutfitList()
 end
 
 -- Enemy boarding-party composition scales with sea level. New gimmick
--- enemies (4.3) enter the pool one at a time so "new guy!" is the
+-- enemies enter the pool one at a time so "new guy!" is the
 -- difficulty beat: crab at sea 3 (twice as likely on icy seas), thief
 -- parrot at sea 4 (at most one — one chase per fight is plenty).
--- New Voyage+ (5.3): each meta tier shifts the comp thresholds one sea
+-- New Voyage+: each meta tier shifts the comp thresholds one sea
 -- earlier (capped at +2), so "new guy!" beats land sooner on later voyages.
 function M.compFor(lv, biome)
   lv = M.scaleLv(lv) + math.min(2, meta.data.tier or 0)
@@ -680,92 +681,39 @@ function M.hasSave()
   return love.filesystem.getInfo(M.SAVE_PATH) ~= nil
 end
 
+local function isCurrentSave(saved)
+  if type(saved) ~= 'table' or saved.version ~= M.SAVE_VERSION then return false end
+  if saved.mode ~= 'solo' and saved.mode ~= 'captains' then return false end
+  local requiredTables = {
+    'crew', 'party', 'owned', 'treas', 'ship', 'voyage', 'hints', 'owners',
+    'bonds', 'bondsMade', 'log', 'seenDecks', 'salvage', 'fittings',
+    'blueprints', 'blueprintDrops', 'bossFlotsam', 'colors',
+  }
+  for _, key in ipairs(requiredTables) do
+    if type(saved[key]) ~= 'table' then return false end
+  end
+  if saved.mode == 'captains' and type(saved.ship2) ~= 'table' then return false end
+  return true
+end
+
+local function rebuildFittedShipSprites()
+  local sprites = require 'src.sprites'
+  sprites.buildFittedShip(M.colorOf('p1'))
+  if M.isCoop() then
+    sprites.buildFittedShip(M.colorOf('p2'))
+  end
+end
+
 -- Returns true and swaps in the loaded run on success; false leaves M.run
 -- untouched (caller falls back to M.newGame()).
 function M.load()
   local text = love.filesystem.read(M.SAVE_PATH)
   if not text then return false end
   local saved = serialize.decode(text)
-  if not saved or not saved.crew or not saved.party then return false end
-  saved.version = saved.version or 1
-  saved.voyage = saved.voyage or { sea = (saved.sea and saved.sea.lv) or 1, length = 8 }
-  saved.mode = saved.mode or (saved.coop and 'mates' or 'solo')
-  saved.owners = saved.owners or {}
-  -- First Mate is gone: old 'mates' saves fold into solo, and any pal
-  -- owned by P2 reassigns to P1 (the sole remaining captain).
-  if saved.mode == 'mates' then
-    saved.mode = 'solo'
-    for name in pairs(saved.owners) do saved.owners[name] = 'p1' end
-  end
-  saved.coop = nil
-  saved.parrot = nil
-  -- A captains save missing ship2 (older field shape) rebuilds it from the
-  -- ship's current spot rather than losing the second fleet entirely.
-  if saved.mode == 'captains' and not saved.ship2 then
-    local sh = saved.ship
-    saved.ship2 = { x = sh.x, y = sh.y, fx = sh.x, fy = sh.y, face = 1, anim = nil }
-  end
-  -- Pre-color-selector saves keep their old look: white sails, and the
-  -- green P2 sails shipP2's hull tint used to provide.
-  saved.colors = saved.colors or { p1 = 'white', p2 = saved.ship2 and 'green' or nil }
-  -- The recruit bench was removed; merge any benched pals from old saves
-  -- into the crew (up to the 10 cap) so they aren't stranded.
-  if saved.bench then
-    for _, p in ipairs(saved.bench) do
-      if #saved.crew < 10 then saved.crew[#saved.crew + 1] = p end
-    end
-    saved.bench = nil
-  end
-  saved.bonds = saved.bonds or {}
-  saved.bondsMade = saved.bondsMade or {}
-  saved.log = saved.log or {}
-  saved.metaTier = saved.metaTier or 0
-  saved.salvage = saved.salvage or {}
-  saved.salvage.timber = saved.salvage.timber or 0
-  saved.salvage.cloth = saved.salvage.cloth or 0
-  saved.salvage.iron = saved.salvage.iron or 0
-
-  saved.fittings = saved.fittings or {}
-  saved.fittings.hull = saved.fittings.hull or 0
-  saved.fittings.sails = saved.fittings.sails or 0
-  saved.fittings.guns = saved.fittings.guns or 0
-
-  saved.blueprints = saved.blueprints or {}
-  saved.bossFlotsam = saved.bossFlotsam or {}
-  saved.gossipShown = saved.gossipShown or false
-  -- One-time migration (5.1): hats used to live only in the per-run save;
-  -- fold any already-owned hat into meta so it survives into New Voyage+,
-  -- then merge meta's hats back down so hats bought at Home Port show up
-  -- on an old run too.
-  saved.owned = saved.owned or { none = true }
-  for id, owned in pairs(saved.owned) do
-    if owned then meta.data.hats[id] = true end
-  end
-  for id, owned in pairs(meta.data.hats) do
-    if owned then saved.owned[id] = true end
-  end
-  meta.save()
-  -- Phase 4 fields: quest/nextBiome legitimately default to nil; the
-  -- per-sea biome state needs concrete defaults for pre-biome saves.
-  if saved.sea then
-    saved.sea.biome = saved.sea.biome or 'calm'
-    saved.sea.slick = saved.sea.slick or {}
-    saved.sea.rocks = saved.sea.rocks or {}
-    saved.sea.rockT = saved.sea.rockT or 2.5
-    saved.sea.shipHurt = saved.sea.shipHurt or 0
-  end
-  saved.blueprintDrops = saved.blueprintDrops or {}
-  saved.blueprintDrops.sea2 = saved.blueprintDrops.sea2 or false
-  saved.blueprintDrops.sea5 = saved.blueprintDrops.sea5 or false
+  if not isCurrentSave(saved) then return false end
 
   M.run = unshapeRun(saved)
-  local ok, sprites = pcall(require, 'src.sprites')
-  if ok and sprites.buildFittedShip then
-    sprites.buildFittedShip(M.colorOf('p1'))
-    if M.isCoop() then
-      sprites.buildFittedShip(M.colorOf('p2'))
-    end
-  end
+  rebuildFittedShipSprites()
   return true
 end
 

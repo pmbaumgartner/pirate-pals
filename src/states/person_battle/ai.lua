@@ -217,15 +217,14 @@ local function foeAttackCo(foe, tgt)
   end
   local pb = S.pb
   local res
-  -- Kind auto-resolve (C4): a fully idle P2's pal blocks at 'good'
-  -- automatically instead of leaving a bar nobody will press.
+  -- A fully idle P2's pal blocks at 'good' automatically instead of
+  -- leaving a bar nobody will press.
   if game.isCoop() and pb.p2Auto and tgt.ref and game.ownerOf(tgt.ref) == 'p2' then
     res = 'good'
   else
     pb.phase = 'parry'
-    -- Softened parry timeout (4.4, widened by design-gaps/04): on seas 1-3
-    -- a frozen, overwhelmed kid who never presses eats half damage
-    -- ('good'), not full ('miss').
+    -- On seas 1-3, a missed parry prompt defaults to half damage ('good')
+    -- instead of full damage ('miss') so early battles stay forgiving.
     res = waitTiming(timing.cfg(pb.lv, true, meta.steadyMult()), 'BLOCK! PRESS Z!',
       pb.lv <= 3 and 'good' or 'miss', model.ownerPlayer(tgt))
   end
@@ -255,7 +254,7 @@ local function foeAttackCo(foe, tgt)
   end
 end
 
--- Thief parrot (4.3): never attacks. Chases the nearest pal, grabs 5 gold
+-- Thief parrot: never attacks. Chases the nearest pal, grabs 5 gold
 -- when adjacent, then flees toward the right deck edge; reaching it while
 -- carrying escapes with the gold (small, visible, never treasures or pals'
 -- stuff). KO-ing him first drops the gold — combat becomes a chase.
@@ -490,11 +489,10 @@ nextFoeCo = function()
   end
 end
 
--- Kind auto-act (C4 solo-collapse, stage 2): after P2 has been idle well
--- past the p2Away latch, their pals act on their own each round — step
--- toward the nearest foe and attack with auto-'good' timing — so a half-
--- abandoned co-op run flows exactly like solo play. Only one callback deep
--- (walkToward's `after`), so this stays plain rather than its own coroutine.
+-- After P2 has been idle well past the p2Away latch, their pals act on
+-- their own each round: step toward the nearest foe and attack with
+-- auto-'good' timing. Only one callback deep (walkToward's `after`), so
+-- this stays plain rather than its own coroutine.
 function M.autoAct(u)
   local pb = S.pb
   if pb.over or not u.alive or u.acted then return end

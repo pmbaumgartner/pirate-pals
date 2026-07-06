@@ -122,8 +122,33 @@ local function shotPowder(sh, shotId)
   return tostring(sh.powder[shotId])
 end
 
-local function drawFleetShotMenu(sb, sh, h)
+local function drawShotMenu(sb, sh, h)
   local shots = shipRules.getKnownShots()
+  if h.full then
+    local bw, bh = 170, #shots * 12 + 24
+    local bx, by = (VW - bw) / 2, 132 - bh
+    gfx.setColor(CO.uiBg)
+    gfx.rectangle('fill', bx, by, bw, bh)
+    ui.outline(bx, by, bw, bh, CO.gold)
+    font.drawText('SELECT SHOT', bx + bw / 2, by + 4, CO.gold, 1, 'center')
+    for i = 0, #shots - 1 do
+      local shotId = shots[i + 1]
+      local minDmg, maxDmg = shipRules.getShotPreview(sh, sb.foe, shotId)
+      local label = data.SHOTS[shotId].label .. ' x' .. shotPowder(sh, shotId)
+      local col = (sh.powder[shotId] <= 0) and CO.grayD or (i == sh.sub and CO.gold or CO.white)
+      font.drawText((i == sh.sub and '>' or ' ') .. label, bx + 6, by + 14 + i * 12, col, 1)
+      font.drawText(minDmg .. '-' .. maxDmg, bx + bw - 6, by + 14 + i * 12, col, 1, 'right')
+    end
+    local desc = ({
+      round = 'PLAIN HULL DAMAGE',
+      chain = 'FOE SAILS -1 (CANCELS MOVE)',
+      grape = 'FOE GUNS -1 (BOARDING SETUP)',
+      fire = 'ABLAZE: 4 DMG/TURN',
+    })[shots[sh.sub + 1]] or ''
+    font.drawText(desc, bx + 6, by + bh - 10, CO.gray, 1)
+    return
+  end
+
   local first = math.max(0, math.min(sh.sub - 1, #shots - 2))
   for row = 0, 1 do
     local pi = first + row
@@ -138,8 +163,27 @@ local function drawFleetShotMenu(sb, sh, h)
   end
 end
 
-local function drawFleetSpecialMenu(sh, h, specialPartyFor)
+local function drawSpecialMenu(sh, h, specialPartyFor)
   local plist = specialPartyFor()
+  if h.full then
+    local n = #plist
+    if n == 0 then return end
+    local bw, bh = 170, n * 12 + 24
+    local bx, by = (VW - bw) / 2, 132 - bh
+    gfx.setColor(CO.uiBg)
+    gfx.rectangle('fill', bx, by, bw, bh)
+    ui.outline(bx, by, bw, bh, CO.gold)
+    font.drawText('CREW SPECIALS', bx + bw / 2, by + 4, CO.gold, 1, 'center')
+    for i = 0, n - 1 do
+      local pp = plist[i + 1]
+      local col = i == sh.sub and CO.gold or CO.white
+      font.drawText((i == sh.sub and '>' or ' ') .. pp.name .. ' - ' .. data.ROLES[pp.role].ship.name,
+        bx + 6, by + 14 + i * 12, col, 1)
+    end
+    font.drawText(data.ROLES[plist[sh.sub + 1].role].ship.desc, bx + 6, by + bh - 10, CO.gray, 1)
+    return
+  end
+
   local first = math.max(0, math.min(sh.sub - 1, #plist - 2))
   for row = 0, 1 do
     local pi = first + row
@@ -151,96 +195,57 @@ local function drawFleetSpecialMenu(sh, h, specialPartyFor)
   end
 end
 
-local function drawFleetMenu(sb, view)
-  if sb.turn ~= 'select' or sb.co then return end
-  local halves = { { x = 4, col = CO.gold }, { x = VW / 2 + 2, col = CO.green } }
-  for i, sh in ipairs(sb.ships) do
-    local h = halves[i]
-    font.drawText((i == 1 and 'P1: ' or 'P2: ') .. (sh.range == 'NEAR' and 'CLOSE!' or 'FAR'), h.x, 153, h.col, 1)
-    if sh.chosen then
-      font.drawText('WAITING...', h.x, 163, CO.gray, 1)
-    elseif sh.submenu == SUBMENU_SPECIAL then
-      drawFleetSpecialMenu(sh, h, function() return view.specialPartyFor(i) end)
-    elseif sh.submenu == SUBMENU_SHOT then
-      drawFleetShotMenu(sb, sh, h)
+local function drawShipCommandMenu(sb, view, i, h)
+  local sh = sb.ships[i]
+  local itemY = h.itemY or 163
+  if h.title then
+    font.drawText(h.title .. (sh.range == 'NEAR' and 'CLOSE!' or 'FAR'), h.x, 153, h.col, 1)
+  end
+
+  if sh.chosen then
+    font.drawText('WAITING...', h.x, itemY, CO.gray, 1)
+  elseif sh.submenu == SUBMENU_SPECIAL then
+    drawSpecialMenu(sh, h, function() return view.specialPartyFor(i) end)
+  elseif sh.submenu == SUBMENU_SHOT then
+    drawShotMenu(sb, sh, h)
+  else
+    local items = view.shipMenuItems(i)
+    sh.menu = math.min(sh.menu, #items - 1)
+    if h.full then
+      local iw = math.floor((VW - 8) / #items)
+      for ii = 0, #items - 1 do
+        local bx = 4 + ii * iw
+        local sel = ii == sh.menu
+        gfx.setColor(sel and CO.uiBg2 or CO.ink)
+        gfx.rectangle('fill', bx, 153, iw - 4, 14)
+        if sel then ui.outline(bx, 153, iw - 4, 14, CO.gold) end
+        local it = items[ii + 1]
+        local labelCol = not it.ok and CO.grayD or (sel and CO.gold or CO.white)
+        font.drawText(it.label, bx + (iw - 4) / 2, 158, labelCol, 1, 'center')
+      end
+      font.drawText(items[sh.menu + 1].desc, VW / 2, 171, CO.gray, 1, 'center')
     else
-      local items = view.shipMenuItems(i)
-      sh.menu = math.min(sh.menu, #items - 1)
       for ii = 0, #items - 1 do
         local it = items[ii + 1]
         local col = not it.ok and CO.grayD or (ii == sh.menu and h.col or CO.white)
         font.drawText((ii == sh.menu and '>' or ' ') .. it.label,
-          h.x + (ii % 2) * 72, 163 + math.floor(ii / 2) * 8, col, 1)
+          h.x + (ii % 2) * 72, itemY + math.floor(ii / 2) * 8, col, 1)
       end
     end
   end
 end
 
-local function drawSoloSpecial(sb)
-  local party = game.run.party
-  local n = #party
-  local bw, bh = 170, n * 12 + 24
-  local bx, by = (VW - bw) / 2, 132 - bh
-  gfx.setColor(CO.uiBg)
-  gfx.rectangle('fill', bx, by, bw, bh)
-  ui.outline(bx, by, bw, bh, CO.gold)
-  font.drawText('CREW SPECIALS', bx + bw / 2, by + 4, CO.gold, 1, 'center')
-  for i = 0, n - 1 do
-    local pp = party[i + 1]
-    local used = sb.specUsed[pp.name]
-    local col = used and CO.grayD or (i == sb.sub and CO.gold or CO.white)
-    font.drawText((i == sb.sub and '>' or ' ') .. pp.name .. ' - ' .. data.ROLES[pp.role].ship.name,
-      bx + 6, by + 14 + i * 12, col, 1)
+local function drawCommandMenus(sb, view)
+  if sb.turn ~= 'select' or sb.over or sb.co then return end
+  if not sb.fleet then
+    drawShipCommandMenu(sb, view, 1, { x = 4, col = CO.gold, full = true })
+    return
   end
-  font.drawText(data.ROLES[party[sb.sub + 1].role].ship.desc, bx + 6, by + bh - 10, CO.gray, 1)
-end
 
-local function drawSoloShot(sb)
-  local shots = shipRules.getKnownShots()
-  local bw, bh = 170, #shots * 12 + 24
-  local bx, by = (VW - bw) / 2, 132 - bh
-  gfx.setColor(CO.uiBg)
-  gfx.rectangle('fill', bx, by, bw, bh)
-  ui.outline(bx, by, bw, bh, CO.gold)
-  font.drawText('SELECT SHOT', bx + bw / 2, by + 4, CO.gold, 1, 'center')
-  for i = 0, #shots - 1 do
-    local shotId = shots[i + 1]
-    local sh = sb.ships[1]
-    local minDmg, maxDmg = shipRules.getShotPreview(sh, sb.foe, shotId)
-    local label = data.SHOTS[shotId].label .. ' x' .. shotPowder(sh, shotId)
-    local col = (sh.powder[shotId] <= 0) and CO.grayD or (i == sb.sub and CO.gold or CO.white)
-    font.drawText((i == sb.sub and '>' or ' ') .. label, bx + 6, by + 14 + i * 12, col, 1)
-    font.drawText(minDmg .. '-' .. maxDmg, bx + bw - 6, by + 14 + i * 12, col, 1, 'right')
-  end
-  local desc = ({
-    round = 'PLAIN HULL DAMAGE',
-    chain = 'FOE SAILS -1 (CANCELS MOVE)',
-    grape = 'FOE GUNS -1 (BOARDING SETUP)',
-    fire = 'ABLAZE: 4 DMG/TURN',
-  })[shots[sb.sub + 1]] or ''
-  font.drawText(desc, bx + 6, by + bh - 10, CO.gray, 1)
-end
-
-local function drawSoloMenu(sb, view)
-  if sb.turn ~= 'you' or sb.over or sb.co then return end
-  local items = view.shipMenuItems(1)
-  sb.menu = math.min(sb.menu, #items - 1)
-  local iw = math.floor((VW - 8) / #items)
-  for i = 0, #items - 1 do
-    local bx = 4 + i * iw
-    local sel = i == sb.menu
-    gfx.setColor(sel and CO.uiBg2 or CO.ink)
-    gfx.rectangle('fill', bx, 153, iw - 4, 14)
-    if sel then ui.outline(bx, 153, iw - 4, 14, CO.gold) end
-    local it = items[i + 1]
-    local labelCol = not it.ok and CO.grayD or (sel and CO.gold or CO.white)
-    font.drawText(it.label, bx + (iw - 4) / 2, 158, labelCol, 1, 'center')
-  end
-  font.drawText(items[sb.menu + 1].desc, VW / 2, 171, CO.gray, 1, 'center')
-  if sb.submenu == SUBMENU_SPECIAL then
-    drawSoloSpecial(sb)
-  elseif sb.submenu == SUBMENU_SHOT then
-    drawSoloShot(sb)
+  local halves = { { x = 4, col = CO.gold }, { x = VW / 2 + 2, col = CO.green } }
+  for i, sh in ipairs(sb.ships) do
+    local h = halves[i]
+    drawShipCommandMenu(sb, view, i, { x = h.x, col = h.col, title = i == 1 and 'P1: ' or 'P2: ' })
   end
 end
 
@@ -280,7 +285,7 @@ local function drawShips(sb, shipXY, gt)
 end
 
 local function drawIntent(sb, shipXY, fpx, fpy, bobF)
-  local pickPhase = (sb.fleet and sb.turn == 'select') or (not sb.fleet and sb.turn == 'you')
+  local pickPhase = sb.turn == 'select'
   if not (pickPhase and not sb.over and sb.foe.intent) then return end
   local iconName = INTENT_ICON[sb.foe.intent]
   local intentCol = INTENT_COLOR[sb.foe.intent]
@@ -363,7 +368,7 @@ function M.draw(sb, view)
   gfx.setColor(CO.uiBg)
   gfx.rectangle('fill', 0, 140, VW, 40)
   font.drawText(sb.msg, VW / 2, 144, CO.paper, 1, 'center')
-  if sb.fleet then drawFleetMenu(sb, view) else drawSoloMenu(sb, view) end
+  drawCommandMenus(sb, view)
   timing.draw()
 end
 

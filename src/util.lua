@@ -1,5 +1,5 @@
--- Tiny pure utilities. irand/pick mirror the JS prototype's semantics
--- (float-tolerant bounds) so tuned values like shake magnitudes keep working.
+-- Tiny pure utilities. irand/pick accept float-tolerant bounds so tuned
+-- values like shake magnitudes keep working.
 local M = {}
 
 function M.clamp(v, a, b)

@@ -1,8 +1,8 @@
 -- Plain-Lua unit tests for crew colors (color selector): PLAYER_COLORS
 -- shape, playerColorById fallback, run.colors defaults + helpers, and the
--- save/load migration for pre-color saves. game.lua pulls in engine/audio,
--- which only touch love.* inside function bodies, so a stub table is enough
--- (same approach as secrets_test.lua). Run: `lua tests/colors_test.lua`.
+-- current save/load round-trip. game.lua pulls in engine/audio, which only
+-- touch love.* inside function bodies, so a stub table is enough (same
+-- approach as secrets_test.lua). Run: `lua tests/colors_test.lua`.
 package.path = './?.lua;' .. package.path
 
 math.randomseed(7)
@@ -88,21 +88,6 @@ game.save()
 ok(game.load(), 'saved captains run loads back')
 ok(game.colorOf('p1') == 'red' and game.colorOf('p2') == 'blue',
   'colors survive the save/load round-trip')
-
--- Migration: a pre-color captains save gets white/green (green only because
--- ship2 exists), a pre-color solo save gets white only.
-game.run.colors = nil
-game.save()
-ok(game.load(), 'pre-color captains save loads')
-ok(game.run.colors.p1 == 'white' and game.run.colors.p2 == 'green',
-  'pre-color captains save migrates to white/green')
-
-game.newGame()
-game.run.colors = nil
-game.save()
-ok(game.load(), 'pre-color solo save loads')
-ok(game.run.colors.p1 == 'white' and game.run.colors.p2 == nil,
-  'pre-color solo save migrates to white only')
 
 if fails > 0 then
   print(fails .. ' FAILURES')

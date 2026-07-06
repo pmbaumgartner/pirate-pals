@@ -454,7 +454,7 @@ local KING_SIL = {
   "................",
 }
 
--- Phase 4 gimmick enemies. The crab's shell/claws face left (toward the
+-- Gimmick enemies. The crab's shell/claws face left (toward the
 -- players) so "hit it from behind" reads on the sprite itself; the thief
 -- parrot wears a bandit mask.
 -- Outline broken (K -> fill) at the claw apexes and shell top so light
@@ -496,7 +496,7 @@ local THIEF = {
   "......KK........",
   "................" }
 
--- Sea-event tiles (4.2): message in a bottle, the friendly trader's stall
+-- Sea-event tiles: message in a bottle, the friendly trader's stall
 -- boat, and the treasure-map X.
 local BOTTLE_T = {
   "................",
@@ -563,7 +563,7 @@ local ROCK = {
   "........",
   "........" }
 
--- Biome HUD/chart icons (4.1): sun, snowflake, fog cloud, volcano.
+-- Biome HUD/chart icons: sun, snowflake, fog cloud, volcano.
 local BIO_CALM = {
   "............",
   ".....Y......",
@@ -724,7 +724,7 @@ local SALVAGE_ART = {
   }
 }
 
--- Perk pick icons (3.3): small, shown on the loot perk card only.
+-- Perk pick icons: small, shown on the loot perk card only.
 local PERK_ART = {
   boots  = {"........", "..BB.BB.", "..BB.BB.", "..bb.bb.", "bbbb.bbb", "........"},
   belly  = {"........", "..RRRR..", ".RRWWRR.", ".RWWWWR.", "..RRRR..", "........"},

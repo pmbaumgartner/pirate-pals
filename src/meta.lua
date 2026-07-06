@@ -1,4 +1,4 @@
--- Meta save (5.1): a second save file, alongside save.lua, for progress that
+-- Meta save: a second save file, alongside save.lua, for progress that
 -- survives across voyages — banked gold, permanent ship upgrades, owned
 -- hats, and voyage-completion counters. `M.data` is plain data (same
 -- constraint as game.run) so it round-trips through serialize.lua.
@@ -8,7 +8,7 @@ local M = {}
 
 M.SAVE_PATH = 'meta.lua'
 
--- Ship upgrades (5.2), bought at Home Port with banked gold. Costs are
+-- Ship upgrades, bought at Home Port with banked gold. Costs are
 -- per-tier (costs[tier+1] is the price of the next tier); `max` caps tiers.
 M.UPGRADES = {
   figurehead = { name = 'FIGUREHEAD', desc = '+10 SHIP HP PER TIER', costs = { 60, 140, 260 }, max = 3 },

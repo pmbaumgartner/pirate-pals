@@ -51,27 +51,7 @@ ok(game.run.fittings.slot == nil, 'game.run.fittings.slot starts at nil')
 ok(game.run.blueprints ~= nil, 'game.run.blueprints exists')
 ok(game.run.bossFlotsam ~= nil, 'game.run.bossFlotsam exists')
 
--- 3. Test game load migration
-local saved = {
-  crew = {},
-  party = {},
-  owned = {},
-}
-local gameMeta = require 'src.meta'
-gameMeta.data = { hats = {}, upgrades = {} }
-gameMeta.save = function() end
-game.SAVE_PATH = 'dummy'
-love.filesystem.read = function()
-  -- return encoded table
-  local serialize = require 'src.serialize'
-  return serialize.encode(saved)
-end
-love.filesystem.getInfo = function() return {} end
-ok(game.load() == true, 'game.load parses old format')
-ok(game.run.salvage.timber == 0, 'migrated salvage starts at 0')
-ok(game.run.fittings.hull == 0, 'migrated fittings starts at 0')
-
--- 4. Test ship_rules helpers
+-- 3. Test ship_rules helpers
 game.newGame('solo')
 ok(shipRules.getFittingTier('hull') == 0, 'fitting tier default is 0')
 game.run.fittings.hull = 2
@@ -97,7 +77,7 @@ ok(shipRules.getPlayerHullMax(1) == 30 + 12, 'hull max is 30 + 12 = 42') -- base
 ok(shipRules.getPlayerSails(1) == 1 + 1, 'sails is 1 + 1 = 2')
 ok(shipRules.getPlayerGuns(1) == 1 + 3 + math.floor(4 / 2), 'guns is 1 + 3 + 2 = 6')
 
--- 5. Test known shots and blueprints
+-- 4. Test known shots and blueprints
 ok(shipRules.isShotKnown('round') == true, 'round is always known')
 ok(shipRules.isShotKnown('chain') == false, 'chain is not known initially')
 ok(shipRules.getKnownShots()[1] == 'round' and #shipRules.getKnownShots() == 1, 'only round is known')
@@ -110,7 +90,7 @@ game.run.fittings.slot = 'chain'
 ok(shipRules.isShotKnown('chain') == true, 'chain is now known when slotted')
 ok(#shipRules.getKnownShots() == 2 and shipRules.getKnownShots()[2] == 'chain', 'round and chain are known')
 
--- 6. Test damage preview
+-- 5. Test damage preview
 -- min/max for round (power 7) near (power + 2 = 9), guns 6, armor 0, no weak/resist:
 -- baseMin = 9 + 6 - 0 = 15. baseMax = 17.
 local dMin, dMax = shipRules.getDamagePreview('round', 'NEAR', 6, 0, false, false)
@@ -128,7 +108,7 @@ ok(dMin == 22 and dMax == 25, 'ROUND NEAR weak damage preview is 22-25')
 dMin, dMax = shipRules.getDamagePreview('round', 'NEAR', 6, 0, false, true)
 ok(dMin == 11 and dMax == 12, 'ROUND NEAR resisted damage preview is 11-12')
 
--- 7. Test enemy class stats
+-- 6. Test enemy class stats
 local eStats = shipRules.getEnemyClassStats('sloop', 3)
 ok(eStats ~= nil, 'sloop stats exists')
 ok(eStats.maxHp == 24 + 8 * 3, 'sloop hp scales correctly: 48')
@@ -137,7 +117,7 @@ ok(eStats.sails == 3, 'sloop sails is 3')
 ok(eStats.weak == 'chain', 'sloop weak is chain')
 ok(eStats.armor == 0, 'sloop armor is 0')
 
--- 8. Test stage clamping and effective stats
+-- 7. Test stage clamping and effective stats
 ok(shipRules.clampStage(0) == 0, 'stage 0 clamp is 0')
 ok(shipRules.clampStage(-1) == -1, 'stage -1 clamp is -1')
 ok(shipRules.clampStage(-2) == -2, 'stage -2 clamp is -2')
@@ -151,7 +131,7 @@ ok(shipRules.getEffectiveStat(3, -2) == 1, 'effective stat sails 3, stage -2 is 
 ok(shipRules.getEffectiveStat(3, -3) == 1, 'effective stat sails 3, stage -3 clamps to 1')
 ok(shipRules.getEffectiveStat(1, -2) == 0, 'effective stat sails 1, stage -2 clamps to 0')
 
--- 9. Test dodge quality
+-- 8. Test dodge quality
 -- sails = 1 + tier. tier = sails - 1.
 -- effective sails 3 (tier 2), stage 0 -> tier 2. Dodge = 0.4 + 2 * 0.15 = 0.70.
 ok(math.abs(shipRules.getDodgeChance(3, 0, false) - 0.70) < 0.001, 'dodge chance sails 3, stage 0 is 0.70')

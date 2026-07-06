@@ -1,4 +1,4 @@
--- Plain-Lua unit tests for perk data + game.statsOf's perk math (3.3).
+-- Plain-Lua unit tests for perk data + game.statsOf's perk math.
 -- game.lua now pulls in engine/audio (for foundSecret) which only
 -- touch love.* inside function bodies, so a stub table is enough to load
 -- them (same approach as person_battle_test.lua).

@@ -128,7 +128,7 @@ local function openChest(x, y)
   loot.start(partsList, 'A CHEST!')
 end
 
--- Sea events (4.2). A bottle marks an X on a later sea; the X digs up a
+-- Sea events. A bottle marks an X on a later sea; the X digs up a
 -- guaranteed tier-2 treasure; the trader offers one fair 2-way swap (or a
 -- plain gift when the player can afford neither side).
 local function foundBottle(x, y)
@@ -198,7 +198,7 @@ local function nextSea()
   chart.startAdvance()
 end
 
--- Volcano twist (4.1): rocks telegraph on a hex near the ship (pulsing
+-- Volcano twist: rocks telegraph on a hex near the ship (pulsing
 -- outline), then land ~2s later. A hit dents the ship — the next ship
 -- battle starts with a lower bar (capped well above sinking) — and misses
 -- just splash. Rock state lives in run.sea so it serializes.
@@ -239,7 +239,7 @@ function M.updateRocks(dt)
   end
 end
 
--- Foggy twist (4.1): enemies beyond 3 hexes hide behind a "?" splash.
+-- Foggy twist: enemies beyond 3 hexes hide behind a "?" splash.
 -- Countered by the SPYGLASS treasure (first treasure with a job!), which
 -- reveals everything.
 function M.enemyVisible(e)
@@ -438,7 +438,7 @@ function M.tickShip(sh, ctx, shipKey, dt)
     sh.fy = util.lerp(sh.anim.y0, sh.y, util.ease(a))
     if a >= 1 then
       sh.anim = nil
-      -- Icy slide (4.1): landing on a slick hex carries the ship one more
+      -- Icy slide: landing on a slick hex carries the ship one more
       -- hex the same way. Bump-safe: blocked/enemy-occupied ends the slide.
       local slid = false
       local sea = game.run.sea

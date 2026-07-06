@@ -30,7 +30,7 @@ local SEA_BAND = sailMap.SEA_BAND
 local hexCenter, sailPx, hexAt, hexStep, inSea = sailMap.hexCenter, sailMap.sailPx, sailMap.hexAt, sailMap.hexStep, sailMap.inSea
 local drawHexOutline, drawChevron, drawWhirl = sailMap.drawHexOutline, sailMap.drawChevron, sailMap.drawWhirl
 
--- Biome palettes (4.1): each biome recolors the water so a kid clocks the
+-- Biome palettes: each biome recolors the water so a kid clocks the
 -- sea type at a glance before reading anything. Twist rules stay flag-driven
 -- off run.sea.biome below — no biome-plugin abstraction until there are >=5.
 local hexc = palette.hex

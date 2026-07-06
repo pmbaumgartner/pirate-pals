@@ -2,13 +2,11 @@
 -- disables the enemy ship and hands off to the boarding (person) battle;
 -- losing slips the player safely back to sail mode.
 --
--- TWO CAPTAINS (C3): sb.ships is a real array (1 entry solo, 2 in fleet
--- mode) so foe-side logic (decideIntent/foeAct/impact/fireBall/shipXY) is
--- fully shared by index; only the *round structure* differs. Solo keeps the
--- classic single-turn menu (sb.turn 'you'/'foe'). Fleet mode picks both
--- captains' actions simultaneously (sb.turn 'select'), then resolves them
--- one at a time in confirm order (sb.turn 'resolve') before the foe's
--- single turn.
+-- TWO CAPTAINS: sb.ships is a real array (1 entry solo, 2 in fleet mode)
+-- so foe-side logic (decideIntent/foeAct/impact/fireBall/shipXY) is shared
+-- by index. Command selection lives on each ship; solo resolves when ship 1
+-- chooses, while fleet waits for both captains and resolves in confirm order
+-- before the foe's single turn.
 --
 -- Round resolution (everything after a menu is confirmed: animations,
 -- damage, the foe's turn, back to select) runs as one coroutine (sb.co)
@@ -69,7 +67,7 @@ function M.start(foe)
   local lv = game.scaleLv(foe.lv)
   local isBoss = foe.boss == true
   local fleet = game.run.mode == 'captains'
-  -- Volcano dents (4.1): rock hits on the sail map lower the starting bar
+  -- Volcano dents: rock hits on the sail map lower the starting bar
   -- for the next battle only (capped at 9, so never close to a sink), then
   -- the dents are spent. FIX patches them like any other damage.
   local hurt = 0
@@ -101,8 +99,7 @@ function M.start(foe)
     fleet = fleet,
     foe = shipRules.buildFoeState(foe, lv, fleet, startSailsStage),
     ships = ships,
-    turn = fleet and 'select' or 'you',
-    menu = 0, submenu = nil, sub = 0,
+    turn = 'select',
     specUsed = {}, anim = nil, wait = 0, co = nil,
     over = false, msg = fleet and 'BOTH CAPTAINS, CHOOSE!' or 'YOUR TURN! CHOOSE!',
     broadsideUsed = false,
@@ -413,13 +410,12 @@ local function backToTurnLogic()
 
   if sb.fleet then
     tickPatches()
-    for _, sh in ipairs(sb.ships) do sh.chosen, sh.confirmOrder = nil, nil end
-    sb.turn = 'select'
-    sb.msg = 'BOTH CAPTAINS, CHOOSE!'
-  else
-    sb.turn = 'you'
-    sb.msg = 'YOUR TURN! CHOOSE!'
   end
+  for _, sh in ipairs(sb.ships) do
+    sh.chosen, sh.confirmOrder, sh.specPick = nil, nil, nil
+  end
+  sb.turn = 'select'
+  sb.msg = sb.fleet and 'BOTH CAPTAINS, CHOOSE!' or 'YOUR TURN! CHOOSE!'
   decideIntent()
 end
 
@@ -610,7 +606,7 @@ local function resolveSpecialAction(i, p)
   local sh = sb.ships[i]
   local ex, ey = shipXY(i)
   sb.specUsed[p.name] = true
-  sb.submenu = nil
+  sh.submenu = nil
   local r = p.role
   engine.addFloat(VW / 2, 52, data.ROLES[r].ship.name, CO.gold, 2)
   if r == 'captain' then
@@ -637,9 +633,7 @@ local function resolveSpecialAction(i, p)
   end
 end
 
--- Resolves one ship's confirmed menu action. Fleet calls this per queued
--- ship inside its round coroutine; solo wraps a single call in its own
--- coroutine from the top-level menu confirm.
+-- Resolves one ship's confirmed menu action inside the round coroutine.
 local function doShipAction(i, id)
   local sh = sb.ships[i]
   if id == 'patch' then
@@ -689,26 +683,15 @@ local function doShipAction(i, id)
     engine.addFloat(ex + 16, ey - 18, '+15', CO.green, 2)
     wait(0.6)
   elseif id == 'spec' then
-    if sb.fleet then
-      resolveSpecialAction(i, sh.specPick)
-    else
-      sb.submenu = SUBMENU_SPECIAL
-      sb.sub = 0
-      SFX.sel()
-    end
+    resolveSpecialAction(i, sh.specPick)
   end
 end
 
 --------------------------------------------------------------------------
--- Solo (single-ship, classic alternating-turn menu)
 --------------------------------------------------------------------------
 
-local function menuItems()
-  return shipMenuItems(1)
-end
-
 --------------------------------------------------------------------------
--- Fleet (TWO CAPTAINS): simultaneous pick, sequential resolve
+-- Ship command resolution: simultaneous pick, sequential resolve
 --------------------------------------------------------------------------
 
 -- Drains the confirm-ordered queue one ship at a time, then hands off to
@@ -882,75 +865,7 @@ engine.states.shipBattle = {
       return
     end
 
-    if sb.fleet then
-      if sb.turn == 'select' then updateSelect(dt) end
-      return
-    end
-
-    if sb.turn ~= 'you' then return end
-
-    local ctx = input.p1
-    local party = game.run.party
-    if sb.submenu == SUBMENU_SPECIAL then
-      if ctx.rp('up') then sb.sub = (sb.sub + #party - 1) % #party; SFX.move() end
-      if ctx.rp('down') then sb.sub = (sb.sub + 1) % #party; SFX.move() end
-      if ctx.jp('b') then
-        sb.submenu = nil
-        SFX.back()
-      elseif ctx.jp('a') then
-        local p = party[sb.sub + 1]
-        if not sb.specUsed[p.name] then
-          SFX.sel()
-          sb.submenu = nil
-          beginCo(function()
-            resolveSpecialAction(1, p)
-            runFoeTurn()
-          end)
-        else SFX.bump() end
-      end
-      return
-    elseif sb.submenu == SUBMENU_SHOT then
-      local shots = shipRules.getKnownShots()
-      if ctx.rp('up') then sb.sub = (sb.sub + #shots - 1) % #shots; SFX.move() end
-      if ctx.rp('down') then sb.sub = (sb.sub + 1) % #shots; SFX.move() end
-      if ctx.jp('b') then
-        sb.submenu = nil
-        SFX.back()
-      elseif ctx.jp('a') then
-        local shotId = shots[sb.sub + 1]
-        local ppPowder = sb.ships[1].powder[shotId]
-        if ppPowder > 0 then
-          SFX.sel()
-          sb.submenu = nil
-          beginCo(function()
-            doShipAction(1, 'fire_' .. shotId)
-            runFoeTurn()
-          end)
-        else SFX.bump() end
-      end
-      return
-    end
-
-    local items = menuItems()
-    sb.menu = math.min(sb.menu, #items - 1)
-    if ctx.rp('left') then sb.menu = (sb.menu + #items - 1) % #items; SFX.move() end
-    if ctx.rp('right') then sb.menu = (sb.menu + 1) % #items; SFX.move() end
-    local it = items[sb.menu + 1]
-    if ctx.jp('a') then
-      if it.ok then
-        SFX.sel()
-        if it.id == 'spec' then
-          sb.submenu, sb.sub = SUBMENU_SPECIAL, 0
-        elseif it.id == 'fire' then
-          sb.submenu, sb.sub = SUBMENU_SHOT, 0
-        else
-          beginCo(function()
-            doShipAction(1, it.id)
-            runFoeTurn()
-          end)
-        end
-      else SFX.bump() end
-    end
+    if sb.turn == 'select' then updateSelect(dt) end
   end,
 
   draw = function()

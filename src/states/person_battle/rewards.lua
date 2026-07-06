@@ -31,7 +31,7 @@ function M.victoryLoot()
     parts[#parts + 1] = treasurePart
     for _, u in ipairs(unlocks) do parts[#parts + 1] = u end
   end
-  -- Slower leveling (3.2): every pal in this fight banks a win; leveling
+  -- Slower leveling: every pal in this fight banks a win; leveling
   -- happens on even wins so the milestone perk picks (2/4/6) land on a
   -- predictable cadence. Perk milestones swap in an interactive perk card
   -- instead of the plain level-up card.
@@ -55,7 +55,7 @@ function M.victoryLoot()
   end
   if #lvNames > 0 then parts[#parts + 1] = { type = 'level', names = lvNames } end
 
-  -- Best Mates (3.4): pals who ended the fight adjacent build toward a bond;
+  -- Best Mates: pals who ended the fight adjacent build toward a bond;
   -- crossing the threshold shows a one-time BEST MATES card.
   local BOND_THRESHOLD = 3
   for i = 1, #pb.units do

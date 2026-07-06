@@ -1,6 +1,6 @@
--- Plain-Lua unit tests for the Phase 4 pure logic: grid.hexDirIndex (the
+-- Plain-Lua unit tests for biome pure logic: grid.hexDirIndex (the
 -- icy-sea slide's "same direction" primitive) and serialize round-trips of
--- the new biome/quest run shapes. Run from the project root with any
+-- the biome/quest run shapes. Run from the project root with any
 -- Lua 5.1+: `lua tests/biome_test.lua`.
 package.path = './?.lua;' .. package.path
 
@@ -52,7 +52,7 @@ for _, start in ipairs({ { 8, 4 }, { 8, 5 } }) do
   end
 end
 
--- Phase 4 run shapes survive encode/decode: sparse "x,y"-keyed slick set,
+-- Biome run shapes survive encode/decode: sparse "x,y"-keyed slick set,
 -- rock timers, quest, and the pre-rolled next biome.
 local sea = {
   lv = 3, biome = 'icy',
@@ -62,7 +62,7 @@ local sea = {
 }
 local run = { sea = sea, quest = { sea = 5 }, nextBiome = { sea = 4, biome = 'volcano' } }
 local back = serialize.decode(serialize.encode(run))
-ok(back ~= nil, 'phase 4 run shape decodes')
+ok(back ~= nil, 'biome run shape decodes')
 ok(back.sea.biome == 'icy', 'biome survives round-trip')
 ok(back.sea.slick['4,2'] == true and back.sea.slick['10,7'] == true,
   'slick "x,y" keys survive round-trip')

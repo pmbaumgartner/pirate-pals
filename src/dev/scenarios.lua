@@ -1,4 +1,4 @@
--- Named --warp scenarios (0.2): jump straight to a specific game state
+-- Named --warp scenarios: jump straight to a specific game state
 -- with hand-built data, instead of playing through to reach it. Dev-only:
 -- required lazily by main.lua only when --warp is present.
 local game = require 'src.game'
@@ -103,8 +103,8 @@ M.scenarios = {
     personBattle.startBoss(game.run.sea.enemies[1])
   end,
 
-  -- TWO CAPTAINS (C2): both ships on one sea from the start, P2 controlling
-  -- ship2 via input.p2 (arrows + N/M).
+  -- Captains sailing: both ships on one sea from the start, with P2
+  -- controlling ship2 via input.p2 (arrows + N/M).
   ['captains-sail'] = function()
     game.newGame('captains')
     input.setCoop(true)
@@ -152,7 +152,7 @@ M.scenarios = {
     end
   end,
 
-  -- TWO CAPTAINS (C4): dual-cursor boarding, 2+2 party with split owners.
+  -- Captains boarding: dual cursors, 2+2 party, and split owners.
   ['captains-boarding'] = function()
     game.newGame('captains')
     input.setCoop(true)
@@ -161,7 +161,7 @@ M.scenarios = {
     personBattle.start(game.run.sea.enemies[1])
   end,
 
-  -- TWO CAPTAINS (C5): the duo victory banner and captains-first lineup.
+  -- Captains victory: the duo banner and captains-first lineup.
   ['captains-victory'] = function()
     game.newGame('captains')
     input.setCoop(true)
@@ -170,7 +170,7 @@ M.scenarios = {
     victory.start()
   end,
 
-  -- Biomes (4.1): one warp per twist, mid-voyage difficulty.
+  -- Biomes: one warp per twist, mid-voyage difficulty.
   ['sea-icy'] = function()
     game.newGame()
     game.genSea(3, 'icy')
@@ -189,7 +189,7 @@ M.scenarios = {
     engine.setState('sail')
   end,
 
-  -- Gimmick enemies (4.3) via the comp override.
+  -- Gimmick enemies via the comp override.
   ['boarding-crab'] = function()
     game.newGame()
     game.run.party[1].lvl = 3
@@ -207,7 +207,7 @@ M.scenarios = {
     personBattle.start(game.run.sea.enemies[1], { 'thief', 'grunt' })
   end,
 
-  -- Event cards (4.2): bottle + trader, both trade options live.
+  -- Event cards: bottle + trader, both trade options live.
   ['events'] = function()
     game.newGame()
     game.run.gold = 40
@@ -228,7 +228,7 @@ M.scenarios = {
     victory.start()
   end,
 
-  -- Home Port (5.2): meta already has a few voyages/gold banked so upgrades
+  -- Home Port: meta already has a few voyages/gold banked so upgrades
   -- are affordable and NEW VOYAGE is reachable.
   ['port'] = function()
     meta.newMeta()
@@ -238,7 +238,7 @@ M.scenarios = {
     engine.setState('port')
   end,
 
-  -- New Voyage+ (5.3): meta already has a completed voyage + tier bump so
+  -- New Voyage+: meta already has a completed voyage + tier bump so
   -- newGamePlus's crew-reseed and comp-widening wrinkles are visible.
   ['new-voyage-plus'] = function()
     meta.newMeta()
@@ -302,7 +302,7 @@ M.scenarios = {
     personBattle.start(game.run.sea.enemies[1], nil, 'tidepool')
   end,
 
-  -- Golden Compass (5.3): 12/12 treasure log already banked, so sea 9's
+  -- Golden Compass: 12/12 treasure log already banked, so sea 9's
   -- kraken rematch is reachable straight from a fresh voyage.
   ['boss-kraken'] = function()
     meta.newMeta()

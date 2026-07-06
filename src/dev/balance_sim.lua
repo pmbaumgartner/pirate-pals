@@ -1,4 +1,4 @@
--- Headless auto-battle balance simulation for Stage 5
+-- Headless auto-battle balance simulation.
 
 -- Ensure love is globally defined first!
 if not _G.love then

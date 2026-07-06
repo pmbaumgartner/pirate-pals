@@ -1,5 +1,5 @@
 -- Plain-Lua unit tests for src/fleet.lua's fleet round-resolution rules
--- (C3). Run from the project root: `lua tests/fleet_round_test.lua`.
+-- Run from the project root: `lua tests/fleet_round_test.lua`.
 package.path = './?.lua;' .. package.path
 local fleet = require 'src.fleet'
 

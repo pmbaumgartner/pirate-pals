@@ -291,7 +291,7 @@ function M.schedule(fn, delay)
   S.pb.next = fn
 end
 
--- Which player owns a party-side unit's timing bars (2.3). Solo play or a
+-- Which player owns a party-side unit's timing bars. Solo play or a
 -- unit with no owned pirate behind it resolves to nil ("either player").
 -- p2Away is the solo-collapse latch: once P2 has been idle a full round,
 -- P1 drives everyone, so bars stop gating on P2's button.
@@ -417,7 +417,7 @@ function M.ko(u)
     engine.addParts(ux + 8, uy - 2, 10, CO.gold, 55, 20)
   end
   engine.addParts(ux + 8, uy + 8, 14, CO.white, 40)
-  -- Gold only leaves with an escaped thief (4.3); a KO drops it on the spot.
+  -- Gold only leaves with an escaped thief; a KO drops it on the spot.
   if u.loot then
     u.loot = nil
     engine.addFloat(ux + 8, uy - 12, 'GOT THE GOLD BACK!', CO.gold, 2)
@@ -460,7 +460,7 @@ function M.applyTileDamage(x, y, dmg)
   end
 end
 
--- Best Mates (3.4): +1 ATK while adjacent to your bonded pal.
+-- Best Mates: +1 ATK while adjacent to your bonded pal.
 function M.bondBonus(att)
   if att.side ~= 'p' or not att.ref then return 0 end
   for _, u in ipairs(S.pb.units) do
@@ -476,7 +476,7 @@ end
 -- Shared modifier chain: crab shell / guard, then cover, each
 -- halving. `damage()` and `previewDamage()` both run through this so the
 -- preview can never drift from what actually lands.
--- Crab shell (4.3): frontal hits are halved like a permanent guard; only
+-- Crab shell: frontal hits are halved like a permanent guard; only
 -- attacks from strictly behind (attacker right of the crab, which always
 -- faces the player side) land full damage. Teaches flanking by reward.
 function M.applyMods(dmg, att, def, opts)
@@ -547,11 +547,11 @@ function M.damage(att, def, base, res, opts)
   if def.hp <= 0 then M.breakOrKo(def) end
 end
 
--- Tuckered-out pals (3.1): any party pal KO'd this battle naps next sea and
+-- Tuckered-out pals: any party pal KO'd this battle naps next sea and
 -- steps out of the party. If that would leave the party empty, wake the
 -- captain instead — he's already party-mandatory (crew.lua), so this is the
 -- only "never a soft-lock" case worth special-casing.
--- SHIP'S COOK (5.2): chance per tier to patch a KO'd pal up before the nap
+-- SHIP'S COOK: chance per tier to patch a KO'd pal up before the nap
 -- even starts, guaranteed at the top tier ("naps last 0 seas").
 function M.resolveNaps()
   local run = game.run

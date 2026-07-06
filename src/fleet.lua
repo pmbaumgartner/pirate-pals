@@ -1,4 +1,4 @@
--- Pure round-resolution logic for the TWO CAPTAINS fleet ship battle (C3),
+-- Pure round-resolution logic for the TWO CAPTAINS fleet ship battle,
 -- kept free of LÖVE/engine state so tests/fleet_round_test.lua can exercise
 -- the queue rules headlessly.
 local M = {}

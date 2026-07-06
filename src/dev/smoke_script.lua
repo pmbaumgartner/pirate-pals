@@ -1,4 +1,4 @@
--- Canonical smoke script (0.4): drives every state once, exercising hex
+-- Canonical smoke script: drives every state once, exercising hex
 -- tap-to-sail, ship battle, boarding, loot cards, and the menu screens.
 -- Supersedes the old fixed-timestamp src/smoke.lua — transitions are forced
 -- directly (not gated on real battle outcomes) so the walk stays short and
@@ -47,23 +47,25 @@ local function startSmokeShipBattle(foe, slot)
   game.run.fittings.slot = slot
   shipBattle.start(foe)
   local sbNow = shipBattle.sb
-  shipBattleReady(sbNow, sbNow.fleet and 'select' or 'you', 5)
+  shipBattleReady(sbNow, 'select', 5)
   return sbNow
 end
 
 local function fireSoloShot(sbNow, shotId)
-  sbNow.menu = 0
-  sbNow.submenu = nil
+  local sh = sbNow.ships[1]
+  sh.menu = 0
+  sh.submenu = nil
   tap('z')
-  waitUntil(function() return sbNow.submenu == 'shot' end, 3)
+  waitUntil(function() return sh.submenu == 'shot' end, 3)
   if shotId ~= 'round' then tap('down') end
   tap('z')
   landTiming('p1')
 end
 
 local function chooseSoloShipAction(sbNow, menuIndex)
-  sbNow.menu = menuIndex
-  sbNow.submenu = nil
+  local sh = sbNow.ships[1]
+  sh.menu = menuIndex
+  sh.submenu = nil
   tap('z')
 end
 
@@ -120,16 +122,16 @@ wait(2.5)
 -- Telegraph gallery: foe intents are pure render-side during the player's
 -- pick phase, so poke each one in and shot it for the CI artifact.
 local sbTel = shipBattle.sb
-waitUntil(function() return sbTel.turn == 'you' and not engine.trans.on end, 5)
+waitUntil(function() return sbTel.turn == 'select' and not engine.trans.on end, 5)
 
--- Stage shot submenu with preview screenshot
-sbTel.submenu = 'shot'
-sbTel.sub = 0
+-- Set up the shot submenu preview screenshot.
+sbTel.ships[1].submenu = 'shot'
+sbTel.ships[1].sub = 0
 wait(0.2)
 shot('ship-shot-submenu')
-sbTel.submenu = nil
+sbTel.ships[1].submenu = nil
 
--- Stage foe HUD details (hp, pips, stages, ablaze)
+-- Set up foe HUD details: hp, pips, stat stages, and ablaze.
 local oldFoeHp = sbTel.foe.hp
 local oldFoeSails = sbTel.foe.sailsStage
 local oldFoeGuns = sbTel.foe.gunsStage
@@ -164,11 +166,11 @@ end
 
 -- CREW SPECIALS submenu: the highlighted special's desc renders at the
 -- bottom of the box.
-sbTel.submenu = 'special'
-sbTel.sub = 0
+sbTel.ships[1].submenu = 'special'
+sbTel.ships[1].sub = 0
 wait(0.1)
 shot('ship-sub-desc')
-sbTel.submenu = nil
+sbTel.ships[1].submenu = nil
 
 -- Ship battle mechanics pass: these use the real menus, timing bars, cannon
 -- animation, impact handler, and foe-turn coroutine rather than only staging
@@ -206,7 +208,7 @@ sbAction.foe.target = 1
 chooseSoloShipAction(sbAction, 1) -- MOVE
 waitUntil(function() return shAction.range == 'NEAR' and shAction.dodge > 0 end, 5)
 shot('ship-move-dodge')
-shipBattleReady(sbAction, 'you', 12)
+shipBattleReady(sbAction, 'select', 12)
 
 shAction.hp = math.max(1, shAction.max - 18)
 local hpBeforeFix = shAction.hp
@@ -218,15 +220,15 @@ chooseSoloShipAction(sbAction, 2) -- FIX
 waitUntil(function() return shAction.hp > hpBeforeFix end, 5)
 expect(shAction.repairs == repairsBeforeFix - 1, 'FIX did not spend a repair pip')
 shot('ship-fix-action')
-shipBattleReady(sbAction, 'you', 12)
+shipBattleReady(sbAction, 'select', 12)
 
 sbAction.foe.intent = 'move'
 chooseSoloShipAction(sbAction, 3) -- SPECIAL
-waitUntil(function() return sbAction.submenu == 'special' end, 3)
+waitUntil(function() return shAction.submenu == 'special' end, 3)
 tap('z')
 waitUntil(function() return sbAction.specUsed[game.run.party[1].name] end, 5)
 shot('ship-special-action')
-shipBattleReady(sbAction, 'you', 12)
+shipBattleReady(sbAction, 'select', 12)
 
 game.run.fittings.slot = nil
 
@@ -249,7 +251,7 @@ loot.start({
 }, 'TEST')
 wait(1.0)
 
--- Roster pressure + level-up choices (Phase 3).
+-- Roster pressure and level-up choices.
 
 -- Perk pick: switching the highlighted option then confirming applies that
 -- option's id (not the default) to the pirate.
@@ -351,7 +353,7 @@ tap('x')
 wait(0.3)
 expect(engine.cur == 'sail', 'expected back on sail after chart view')
 
--- Sea variety (Phase 4): biomes, events, gimmick enemies.
+-- Sea variety: biomes, events, and gimmick enemies.
 
 -- Biome override sticks and each twist's data materializes.
 game.genSea(3, 'icy')
@@ -582,7 +584,7 @@ for _ = 1, 6 do
 end
 shot('boss')
 
--- Victory celebration, then Home Port (Phase 5).
+-- Victory celebration.
 game.run.gold = 1000
 require('src.states.victory').start()
 expect(engine.cur == 'victory', 'victory.start did not switch state')
@@ -645,7 +647,7 @@ wait(0.3)
 
 expect(engine.cur == 'sail', 'expected to land back on sail')
 
--- TWO CAPTAINS (C2): both ships share one sea from the start; P2 drives
+-- Captains sailing: both ships share one sea from the start; P2 drives
 -- ship2 directly via input.p2 (arrows + N/M), no join prompt needed.
 game.newGame('captains')
 input.setCoop(true)
@@ -696,7 +698,7 @@ expect(#shipBattle.sb.ships == 2, 'fleet ship battle should have 2 ships')
 -- later sail windows and hijacks the state (chart/convoy checks).
 game.run.sea.enemies = {}
 
--- C3: one full fleet round — both captains pick MOVE from their own menus,
+-- One full fleet round: both captains pick MOVE from their own menus,
 -- actions resolve in confirm order, the foe takes its turn, and control
 -- comes back to select. (Runs deterministically now that scripted runs use
 -- a fixed dt.)
@@ -784,7 +786,7 @@ tap2('a')
 waitUntil(function() return sbT.over or fleetSettled() end, 15)
 wait(0.5)
 
--- C4: dual-cursor boarding — per-player interaction state, each cursor
+-- Dual-cursor boarding: per-player interaction state, each cursor
 -- locked to its owner's pals. Fixed waits + direct state pokes only; avoid
 -- adding waitUntil-on-timing here.
 personBattle.start(foe)
@@ -823,7 +825,7 @@ wait(0.2)
 expect(pbT.pl.p2.sel == nil, "P2 selected P1's pal — cursors must stay on their own units")
 shot('captains-boarding')
 
--- Solo-collapse auto-act (C4): a long-idle P2's pals act on their own so
+-- Solo-collapse auto-act: a long-idle P2's pals act on their own so
 -- the fight never stalls on an empty chair.
 tap('x')
 wait(0.2)
@@ -839,7 +841,7 @@ expect(p2Acted >= 1, 'idle P2 pals did not auto-act')
 engine.setState('sail')
 wait(0.3)
 
--- C5: the chart shows both fleet tokens in captains mode.
+-- Captains chart view: both fleet tokens draw.
 chart.startView()
 wait(0.3)
 shot('captains-chart')
@@ -870,13 +872,13 @@ wait(1.5) -- let it take a few convoy steps
 expect(grid.hexDistance(game.run.ship.x, game.run.ship.y, game.run.ship2.x, game.run.ship2.y) <= 3,
   'convoying ship2 did not step toward ship')
 
--- C5: captains victory — the duo banner and captains-first lineup draw.
+-- Captains victory: the duo banner and captains-first lineup draw.
 require('src.states.victory').start()
 expect(engine.cur == 'victory', 'captains victory did not switch state')
 wait(0.4)
 shot('captains-victory')
 
--- Stage a ship battle loss to capture the capped-loss banner
+-- Set up a ship battle loss to capture the capped-loss banner.
 local dummyFoe = { lv = 1, boss = false, class = 'sloop', name = 'TEST PIRATE' }
 shipBattle.start(dummyFoe)
 expect(engine.cur == 'shipBattle', 'dummy shipBattle.start did not switch state')

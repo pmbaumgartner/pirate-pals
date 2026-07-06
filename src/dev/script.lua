@@ -1,4 +1,4 @@
--- Dev script runner (0.4): `--script=path.lua` drives the game across
+-- Dev script runner: `--script=path.lua` drives the game across
 -- frames via a coroutine, so `waitUntil` can block script execution on a
 -- predicate instead of the brittle fixed timestamps the old smoke.lua used.
 -- `--smoke` is an alias for `--script=src/dev/smoke_script.lua --speed=8`.

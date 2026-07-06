@@ -100,7 +100,7 @@ engine.states.chart = {
     local sx = util.lerp(fx, tx, t)
     local sy = util.lerp(fy, ty, t) - 14
     sprites.draw(sprites.shipSprite(game.colorOf('p1')), sx - 8, sy - 8, false, 1)
-    -- TWO CAPTAINS (C5): both ship tokens hop the island path together.
+    -- In captains mode, both ship tokens hop the island path together.
     if game.run.mode == 'captains' then
       sprites.draw(sprites.shipSprite(game.colorOf('p2')), sx - 18, sy - 4, false, 1)
     end

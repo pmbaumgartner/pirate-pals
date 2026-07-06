@@ -1,8 +1,8 @@
 -- Plain-Lua unit tests for game.logMoment (Voyage Log): entry shape,
 -- sea stamping, and the 40-entry cap keeping "first" milestones over
--- routine repeats. game.lua now pulls in engine/audio (design-gaps/06
--- foundSecret) which only touch love.* inside function bodies, so a stub
--- table is enough to load them (same approach as person_battle_test.lua).
+-- routine repeats. game.lua pulls in engine/audio, which only touch love.*
+-- inside function bodies, so a stub table is enough to load them (same
+-- approach as person_battle_test.lua).
 package.path = './?.lua;' .. package.path
 love = {
   graphics = {},

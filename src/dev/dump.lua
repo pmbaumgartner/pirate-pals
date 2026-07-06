@@ -1,4 +1,4 @@
--- State dump (0.5): `--dump` prints this at quit; scripts can also call the
+-- State dump: `--dump` prints this at quit; scripts can also call the
 -- `dump()` helper (src/dev/script.lua) on demand. `game.run` is plain data so
 -- it round-trips through serialize.encode() as-is; battle state lives outside
 -- run (module-level sb/pb), so it gets its own shallow, reference-free

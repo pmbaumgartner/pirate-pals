@@ -1,7 +1,6 @@
 -- Victory celebration: shown after the Pirate King falls. Crew lineup,
 -- treasure tally, gold total, confetti — then back to the title screen with
--- the save marked completed (run.legend = true). Home Port (Phase 5) will
--- give this a real next step; for now the voyage just ends here.
+-- the save marked completed (run.legend = true).
 local util = require 'src.util'
 local palette = require 'src.palette'
 local font = require 'src.font'
@@ -86,7 +85,7 @@ function M.start()
   local run = game.run
   run.legend = true
   game.logMoment('hat_crown', 'SEA ' .. run.voyage.sea .. ': PIRATE LEGENDS!', {})
-  -- Gold gets a job (5.4): the voyage's gold banks into the meta pool spent
+  -- Gold gets a job: the voyage's gold banks into the meta pool spent
   -- at Home Port; the 12/12 treasure log permanently unlocks sea 9.
   meta.data.gold = meta.data.gold + run.gold
   meta.data.voyagesWon = meta.data.voyagesWon + 1
@@ -133,7 +132,7 @@ engine.states.victory = {
     engine.drawFx()
 
     local run = game.run
-    -- TWO CAPTAINS (C5): the duo banner variant, both captains celebrated.
+    -- Captains mode uses the duo banner variant and celebrates both captains.
     if run.mode == 'captains' then
       font.drawText('PIRATE LEGENDS,', VW / 2, 8, vc.golden and CO.gold or CO.paper, 2, 'center')
       font.drawText('THE BOTH OF YE!', VW / 2, 26, vc.golden and CO.gold or CO.paper, 2, 'center')

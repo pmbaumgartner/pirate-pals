@@ -104,7 +104,7 @@ function M.update(dt, pressed)
   return true
 end
 
--- Two-player "BOTH PRESS!" mode (2.4): one shared marker, but each player's
+-- Two-player "BOTH PRESS!" mode: one shared marker, but each player's
 -- press is classified from their own press time and doesn't end the round —
 -- an early P1 press must not cut off P2's shot. Resolves (calling cb with
 -- both results) once both have pressed, or on timeout.

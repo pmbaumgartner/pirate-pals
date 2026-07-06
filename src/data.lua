@@ -24,7 +24,7 @@ M.EROLES = {
   grunt  = { label = 'SEA DOG', hp = 7, hpLv = 3, atk = 2, atkLv = 1, move = 3, range = 1, join = 'deckhand' },
   gunner = { label = 'GUNNER', hp = 5, hpLv = 2, atk = 2, atkLv = 1, move = 3, range = 3, join = 'sharpshooter' },
   brute  = { label = 'BRUTE', hp = 10, hpLv = 4, atk = 3, atkLv = 1, move = 2, range = 1, join = 'strongman' },
-  -- Phase 4 gimmick enemies, one visible rule each. CRAB: shell halves
+  -- Gimmick enemies, one visible rule each. CRAB: shell halves
   -- frontal damage, hit it from behind (see damage() in person_battle.lua).
   -- THIEF PARROT: grabs gold and flees; join=nil keeps escapo-birds out of
   -- the recruit pool.
@@ -33,7 +33,7 @@ M.EROLES = {
   king   = { label = 'PIRATE KING', hp = 26, hpLv = 0, atk = 5, atkLv = 0, move = 1, range = 1, join = nil },
 }
 
--- Biomes (4.1): palette swap + exactly one visible twist rule each, applied
+-- Biomes: palette swap + exactly one visible twist rule each, applied
 -- flag-driven in sail.lua. `twist` is the banner/hint wording a pre-reader
 -- hears read aloud once and then recognizes by the palette + icon.
 M.BIOMES = {
@@ -188,7 +188,7 @@ M.SECRETS = {
   { id = 'tightrope', name = 'NOBODY WOBBLED!', hint = 'CROSS THE PLANK CAREFULLY' },
 }
 
--- Perk picks (3.3): two options per role at milestone levels 2/4/6, both
+-- Perk picks: two options per role at milestone levels 2/4/6, both
 -- good, effects limited to flat stat deltas so game.statsOf stays a single
 -- choke point. `icon` keys a small sprite drawn on the loot pick card.
 M.PERKS = {
@@ -386,7 +386,7 @@ function M.perkById(id)
   return PERK_BY_ID[id]
 end
 
--- Ship Combat Overhaul (Stage 0):
+-- Ship combat shot tables.
 M.SHOTS = {
   round = { id = 'round', label = 'ROUND SHOT', power = 7, powder = 999999, effect = 'plain' },
   chain = { id = 'chain', label = 'CHAIN SHOT', power = 4, powder = 3, effect = 'sails_down' },
@@ -461,4 +461,3 @@ M.KING = {
 }
 
 return M
-

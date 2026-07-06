@@ -1,4 +1,4 @@
--- Home Port hub (5.2): reached from the victory screen (and from the title
+-- Home Port hub: reached from the victory screen (and from the title
 -- once a voyage has been won). Spend gold banked from finished voyages on
 -- permanent ship upgrades, or set out on a New Voyage+.
 local palette = require 'src.palette'
