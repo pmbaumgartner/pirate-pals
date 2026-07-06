@@ -14,13 +14,18 @@ return function(ctx)
   h.timing = require 'src.timing'
   h.shipBattle = require 'src.states.ship_battle'
   h.personBattle = require 'src.states.person_battle'
+  h.pbModel = require 'src.states.person_battle.model'
+  h.pbAi = require 'src.states.person_battle.ai'
   h.loot = require 'src.states.loot'
   h.chart = require 'src.states.chart'
   h.palette = require 'src.palette'
   h.CO = h.palette.CO
 
   local engine, game, timing, shipBattle = h.engine, h.game, h.timing, h.shipBattle
-  local tap, tap2, waitUntil = ctx.tap, ctx.tap2, ctx.waitUntil
+  local personBattle, model, grid = h.personBattle, h.pbModel, h.grid
+  local tap, tap2, waitUntil, wait, expect =
+    ctx.tap, ctx.tap2, ctx.waitUntil, ctx.wait, ctx.expect
+  local gk = grid.gk
 
   function h.shipBattleReady(sbNow, turn, timeout)
     waitUntil(function()
@@ -109,11 +114,98 @@ return function(ctx)
     end, owner)
   end
 
+  -- Boarding drivers, shared by the boarding-focused modules.
+  --
+  -- Deterministic boarding boot: a synthetic foe, a fixed comp and deck, no
+  -- crates (so target lists and slide paths stay predictable), units
+  -- teleported before intents are re-planned by the caller. The party is
+  -- pinned to `party` (default: exactly CAPPY+FIN) — recruits picked up by
+  -- earlier wins would otherwise add a third pal and stall two-pal scripts.
+  function h.bootBoarding(foeTbl, comp, deck, party)
+    game.run.party = party or { game.run.crew[1], game.run.crew[2] }
+    personBattle.start(foeTbl, comp, deck)
+    expect(engine.cur == 'personBattle', 'scripted boarding did not start')
+    wait(0.3)
+    local pb = personBattle.pb
+    pb.crates = {}
+    return pb
+  end
+
+  function h.foeOf(pb, role)
+    for _, u in ipairs(pb.units) do
+      if u.side == 'e' and u.role == role then return u end
+    end
+    expect(false, 'no ' .. role .. ' in the scripted boarding')
+  end
+
+  function h.teleport(u, x, y)
+    u.x, u.y, u.fx, u.fy = x, y, x, y
+  end
+
+  -- Free deck tile adjacent to (tx, ty), scanning west/east/north/south.
+  function h.freeNeighbor(pb, tx, ty)
+    for _, d in ipairs({ { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 } }) do
+      local nx, ny = tx + d[1], ty + d[2]
+      if model.inDeck(nx, ny) and not model.unitAt(nx, ny) and not pb.crates[gk(nx, ny)] then
+        return nx, ny
+      end
+    end
+    expect(false, 'no free tile adjacent to ' .. tx .. ',' .. ty)
+  end
+
+  function h.freeTileAwayFrom(pb, x, y, minD)
+    for _, t in ipairs(pb.deckList) do
+      if grid.manhattan(t[1], t[2], x, y) >= minD
+        and not model.unitAt(t[1], t[2]) and not pb.crates[gk(t[1], t[2])] then
+        return t[1], t[2]
+      end
+    end
+    expect(false, 'no free tile at distance ' .. minD .. ' from ' .. x .. ',' .. y)
+  end
+
+  -- Drive a pal through pick -> move-in-place -> act menu.
+  function h.openActMenu(pb, u)
+    pb.pl.p1.sel, pb.pl.p1.stage = nil, 'pick'
+    pb.pl.p1.cursor.x, pb.pl.p1.cursor.y = u.x, u.y
+    tap('z') -- select
+    wait(0.2)
+    tap('z') -- move in place -> act menu
+    wait(0.2)
+    expect(pb.pl.p1.stage == 'act', u.name .. ' did not reach the act menu')
+  end
+
+  function h.palAttack(pb, u, land)
+    h.openActMenu(pb, u)
+    tap('z') -- ATTACK (menu index 0)
+    wait(0.2)
+    expect(pb.pl.p1.stage == 'target', u.name .. ' attack did not reach target stage')
+    tap('z') -- confirm target -> timing bar
+    land()
+    wait(0.6)
+  end
+
+  function h.palMenuPick(pb, u, downs)
+    h.openActMenu(pb, u)
+    for _ = 1, downs do
+      tap('down')
+      wait(0.1)
+    end
+    tap('z')
+    wait(0.3)
+  end
+
+  function h.palGuard(pb, u) h.palMenuPick(pb, u, 1) end
+  function h.palStay(pb, u) h.palMenuPick(pb, u, 3) end
+
+  function h.partyPhase(pb)
+    waitUntil(function() return pb.over or pb.phase == 'party' end, 25)
+  end
+
   -- Advances every loot card until the run is back on sail, recording card
   -- types in `seen` (optional). blueprint_choice picks the SECOND option so
   -- the pick logic (not just the default) executes.
   function h.walkLoot(seen)
-    local loot, wait = h.loot, ctx.wait
+    local loot = h.loot
     waitUntil(function() return engine.cur == 'loot' end, 10)
     h.settle()
     for _ = 1, 30 do

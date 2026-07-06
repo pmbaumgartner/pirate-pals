@@ -7,98 +7,15 @@
 -- CAPPY+FIN), which makes the first win's recruit card deterministic
 -- (rewards.lua guarantees it while #run.crew < 3).
 return function(ctx, h)
-  local tap, wait, waitUntil, shot, expect =
-    ctx.tap, ctx.wait, ctx.waitUntil, ctx.shot, ctx.expect
-  local engine, game, grid, timing, personBattle =
-    h.engine, h.game, h.grid, h.timing, h.personBattle
-  local model = require 'src.states.person_battle.model'
-  local ai = require 'src.states.person_battle.ai'
-  local gk = grid.gk
-
-  -- Deterministic boarding boot: a synthetic foe, a fixed comp and deck, no
-  -- crates (so target lists and slide paths stay predictable), units
-  -- teleported before intents are re-planned by the caller. The party is
-  -- pinned to exactly CAPPY+FIN — recruits picked up by earlier wins here
-  -- would otherwise add a third pal and stall the two-pal turn scripts.
-  local function bootBoarding(foeTbl, comp, deck)
-    game.run.party = { game.run.crew[1], game.run.crew[2] }
-    personBattle.start(foeTbl, comp, deck)
-    expect(engine.cur == 'personBattle', 'scripted boarding did not start')
-    wait(0.3)
-    local pb = personBattle.pb
-    pb.crates = {}
-    return pb
-  end
-
-  local function foeOf(pb, role)
-    for _, u in ipairs(pb.units) do
-      if u.side == 'e' and u.role == role then return u end
-    end
-    expect(false, 'no ' .. role .. ' in the scripted boarding')
-  end
-
-  local function teleport(u, x, y)
-    u.x, u.y, u.fx, u.fy = x, y, x, y
-  end
-
-  -- Free deck tile adjacent to (tx, ty), scanning west/east/north/south.
-  local function freeNeighbor(pb, tx, ty)
-    for _, d in ipairs({ { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 } }) do
-      local nx, ny = tx + d[1], ty + d[2]
-      if model.inDeck(nx, ny) and not model.unitAt(nx, ny) and not pb.crates[gk(nx, ny)] then
-        return nx, ny
-      end
-    end
-    expect(false, 'no free tile adjacent to ' .. tx .. ',' .. ty)
-  end
-
-  local function freeTileAwayFrom(pb, x, y, minD)
-    for _, t in ipairs(pb.deckList) do
-      if grid.manhattan(t[1], t[2], x, y) >= minD
-        and not model.unitAt(t[1], t[2]) and not pb.crates[gk(t[1], t[2])] then
-        return t[1], t[2]
-      end
-    end
-    expect(false, 'no free tile at distance ' .. minD .. ' from ' .. x .. ',' .. y)
-  end
-
-  -- Drive a pal through pick -> move-in-place -> act menu.
-  local function openActMenu(pb, u)
-    pb.pl.p1.sel, pb.pl.p1.stage = nil, 'pick'
-    pb.pl.p1.cursor.x, pb.pl.p1.cursor.y = u.x, u.y
-    tap('z') -- select
-    wait(0.2)
-    tap('z') -- move in place -> act menu
-    wait(0.2)
-    expect(pb.pl.p1.stage == 'act', u.name .. ' did not reach the act menu')
-  end
-
-  local function palAttack(pb, u, land)
-    openActMenu(pb, u)
-    tap('z') -- ATTACK (menu index 0)
-    wait(0.2)
-    expect(pb.pl.p1.stage == 'target', u.name .. ' attack did not reach target stage')
-    tap('z') -- confirm target -> timing bar
-    land()
-    wait(0.6)
-  end
-
-  local function palMenuPick(pb, u, downs)
-    openActMenu(pb, u)
-    for _ = 1, downs do
-      tap('down')
-      wait(0.1)
-    end
-    tap('z')
-    wait(0.3)
-  end
-
-  local function palGuard(pb, u) palMenuPick(pb, u, 1) end
-  local function palStay(pb, u) palMenuPick(pb, u, 3) end
-
-  local function partyPhase(pb)
-    waitUntil(function() return pb.over or pb.phase == 'party' end, 25)
-  end
+  local wait, waitUntil, shot, expect =
+    ctx.wait, ctx.waitUntil, ctx.shot, ctx.expect
+  local engine, game, timing, personBattle =
+    h.engine, h.game, h.timing, h.personBattle
+  local model, ai = h.pbModel, h.pbAi
+  local bootBoarding, foeOf, teleport, freeNeighbor, freeTileAwayFrom =
+    h.bootBoarding, h.foeOf, h.teleport, h.freeNeighbor, h.freeTileAwayFrom
+  local palAttack, palGuard, palStay, partyPhase =
+    h.palAttack, h.palGuard, h.palStay, h.partyPhase
 
   local run = game.run
   local cappy, fin = run.party[1], run.party[2]
