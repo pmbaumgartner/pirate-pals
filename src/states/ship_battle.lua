@@ -497,7 +497,7 @@ local function runFoeAct()
     else
       sh.hp = math.max(0, sh.hp - data.KING.ramDmg)
       sb.msg = "THE GALLEON RAMS YOUR SHIP FOR " .. data.KING.ramDmg .. " DAMAGE!"
-      SFX.explode()
+      SFX.boom()
       local px, py = shipXY(target)
       engine.addFloat(px + 16, py - 18, '-' .. data.KING.ramDmg .. ' HULL', CO.red, 2)
       if sh.hp <= 0 then
