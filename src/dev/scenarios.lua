@@ -130,10 +130,10 @@ M.scenarios = {
   ['fleet-submenu'] = function()
     game.newGame('captains')
     input.setCoop(true)
-    game.genSea(3)
-    shipBattle.start(game.run.sea.enemies[1])
-    for _, sh in ipairs(shipBattle.sb.ships) do sh.subOpen = true end
-  end,
+	    game.genSea(3)
+	    shipBattle.start(game.run.sea.enemies[1])
+	    for _, sh in ipairs(shipBattle.sb.ships) do sh.submenu = 'special' end
+	  end,
 
   ['act-menu'] = function()
     game.newGame('captains')

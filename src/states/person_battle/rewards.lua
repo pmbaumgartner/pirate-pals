@@ -6,6 +6,7 @@ local util = require 'src.util'
 local grid = require 'src.grid'
 local game = require 'src.game'
 local data = require 'src.data'
+local shipRewards = require 'src.ship_rewards'
 local loot = require 'src.states.loot'
 local barks = require 'src.barks'
 local S = require 'src.states.person_battle.state'
@@ -103,60 +104,8 @@ function M.victoryLoot()
     end
   end
 
-  -- Salvage and Blueprint drops for ship encounters
-  local isShipEncounter = pb.foeRef and pb.foeRef.class ~= nil
-  if isShipEncounter then
-    local class = pb.foeRef.class
-    local numPieces = util.irand(1, 3)
-    local matPool
-    if class == 'sloop' then
-      matPool = { 'cloth', 'cloth', 'timber', 'iron' }
-    elseif class == 'manowar' then
-      matPool = { 'iron', 'iron', 'timber', 'cloth' }
-    elseif class == 'brig' then
-      matPool = { 'timber', 'cloth', 'iron' }
-    elseif class == 'fireship' then
-      matPool = { 'timber', 'timber', 'cloth', 'iron' }
-    else
-      matPool = { 'timber', 'cloth', 'iron' }
-    end
-    local material = util.pick(matPool)
-    run.salvage[material] = run.salvage[material] + numPieces
-    parts[#parts + 1] = { type = 'salvage', material = material, n = numPieces }
-
-    -- Milestone blueprint drops on sea 2 and 5
-    if lv == 2 and not run.blueprintDrops.sea2 then
-      run.blueprintDrops.sea2 = true
-      local options = {}
-      if not run.blueprints.chain then
-        table.insert(options, { id = 'chain', name = 'CHAIN SHOT', desc = 'SAILS -1 STAGE' })
-      end
-      if not run.blueprints.grape then
-        table.insert(options, { id = 'grape', name = 'GRAPE SHOT', desc = 'GUNS -1 STAGE' })
-      end
-      if #options > 0 then
-        parts[#parts + 1] = { type = 'blueprint_choice', options = options, choice = 1 }
-      end
-    elseif lv == 5 and not run.blueprintDrops.sea5 then
-      run.blueprintDrops.sea5 = true
-      local options = {}
-      for _, shotId in ipairs({'chain', 'grape', 'fire'}) do
-        if not run.blueprints[shotId] then
-          local desc = ''
-          if shotId == 'chain' then desc = 'SAILS -1 STAGE'
-          elseif shotId == 'grape' then desc = 'GUNS -1 STAGE'
-          elseif shotId == 'fire' then desc = 'ABLAZE STATUS' end
-          table.insert(options, { id = shotId, name = data.SHOTS[shotId].label, desc = desc })
-        end
-      end
-      if #options > 1 then
-        parts[#parts + 1] = { type = 'blueprint_choice', options = options, choice = 1 }
-      elseif #options == 1 then
-        local opt = options[1]
-        run.blueprints[opt.id] = true
-        parts[#parts + 1] = { type = 'blueprint_single', id = opt.id }
-      end
-    end
+  for _, part in ipairs(shipRewards.victoryParts(run, pb.foeRef, lv)) do
+    parts[#parts + 1] = part
   end
 
   local es = run.sea.enemies

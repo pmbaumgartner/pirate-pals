@@ -73,11 +73,11 @@ local sbTel = shipBattle.sb
 waitUntil(function() return sbTel.turn == 'you' and not engine.trans.on end, 5)
 
 -- Stage shot submenu with preview screenshot
-sbTel.subOpen = 'fire'
+sbTel.submenu = 'shot'
 sbTel.sub = 0
 wait(0.2)
 shot('ship-shot-submenu')
-sbTel.subOpen = false
+sbTel.submenu = nil
 
 -- Stage foe HUD details (hp, pips, stages, ablaze)
 local oldFoeHp = sbTel.foe.hp
@@ -114,11 +114,11 @@ end
 
 -- CREW SPECIALS submenu: the highlighted special's desc renders at the
 -- bottom of the box.
-sbTel.subOpen = true
+sbTel.submenu = 'special'
 sbTel.sub = 0
 wait(0.1)
 shot('ship-sub-desc')
-sbTel.subOpen = false
+sbTel.submenu = nil
 
 personBattle.start(game.run.sea.enemies[1])
 expect(engine.cur == 'personBattle', 'personBattle.start did not switch state')
@@ -605,10 +605,10 @@ tap('d')
 tap('d')
 tap('d') -- P1 menu: FIRE -> SPECIAL
 tap('z')
-expect(sbT.ships[1].subOpen, "P1 SPECIAL did not open the fleet submenu")
+expect(sbT.ships[1].submenu == 'special', "P1 SPECIAL did not open the fleet submenu")
 shot('fleet-submenu')
 tap('x')
-expect(not sbT.ships[1].subOpen, 'P1 back did not close the fleet submenu')
+expect(sbT.ships[1].submenu == nil, 'P1 back did not close the fleet submenu')
 tap('d') -- SPECIAL wraps back to FIRE
 sbT.idleT = 0
 

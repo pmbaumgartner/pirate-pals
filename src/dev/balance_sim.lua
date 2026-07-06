@@ -15,95 +15,23 @@ if not _G.love then
   }
 end
 
-local data = require 'src.data'
 local shipRules = require 'src.ship_rules'
-local game = require 'src.game'
 local meta = require 'src.meta'
 
 local M = {}
 
--- Simulates foe's next intent decision
-local function decideFoeIntent(foe, player, level, isBoss)
-  if foe.ablaze and foe.ablaze > 0 and (foe.class == 'fireship' or isBoss) then
-    foe.intent = 'douse'
-    return
-  end
-
-  if isBoss then
-    if foe.class == 'kraken' then
-      foe.intent = 'fire'
-      return
-    end
-
-    local hpRatio = foe.hp / foe.max
-    local phase = 1
-    if hpRatio <= 0.33 then
-      phase = 3
-    elseif hpRatio <= 0.67 then
-      phase = 2
-    end
-
-    if foe.hp < foe.max * 0.3 and foe.repairs > 0 and math.random() < 0.6 then
-      foe.intent = 'fix'
-    elseif phase == 3 then
-      if math.random() < 0.5 then
-        foe.intent = 'ram'
-      elseif foe.bigshotKegs > 0 and math.random() < 0.35 then
-        foe.intent = 'bigshot'
-      else
-        foe.intent = 'fire'
-      end
-    elseif phase == 2 then
-      if (meta.data.tier or 0) >= 2 and foe.volleyKegs > 0 and math.random() < 0.25 then
-        foe.intent = 'volley'
-      elseif foe.bigshotKegs > 0 and math.random() < 0.35 then
-        foe.intent = 'bigshot'
-      else
-        foe.intent = 'fire'
-      end
-    else
-      if foe.bigshotKegs > 0 and math.random() < 0.35 then
-        foe.intent = 'bigshot'
-      else
-        foe.intent = 'fire'
-      end
-    end
-    return
-  end
-
-  if foe.class == 'sloop' then
-    if foe.hp < foe.max * 0.35 and foe.repairs > 0 and math.random() < 0.8 then
-      foe.intent = 'fix'
-    elseif math.random() < 0.35 then
-      foe.intent = 'move'
-    else
-      foe.intent = 'fire'
-    end
-  elseif foe.class == 'manowar' then
-    if foe.hp < foe.max * 0.35 and foe.repairs > 0 and math.random() < 0.8 then
-      foe.intent = 'fix'
-    elseif foe.bigshotKegs > 0 and math.random() < 0.5 then
-      foe.intent = 'bigshot'
-    else
-      foe.intent = 'fire'
-    end
-  elseif foe.class == 'fireship' then
-    foe.intent = 'fire'
-  else -- brig or default
-    if foe.hp < foe.max * 0.35 and foe.repairs > 0 and math.random() < 0.8 then
-      foe.intent = 'fix'
-    elseif math.random() < 0.18 then
-      foe.intent = 'move'
-    else
-      foe.intent = 'fire'
-    end
-  end
+local function decideFoeIntent(foe, isBoss)
+  foe.intent = shipRules.chooseFoeIntent(foe, {
+    isBoss = isBoss,
+    tier = meta.data.tier or 0,
+  })
 end
 
 -- Simulates a single battle and returns (win, turnCount)
 function M.runBattle(profile)
-  -- Setup game.run for shipRules queries
-  game.run = {
+  meta.data = { upgrades = {} }
+  local capLevel = profile.captainLevel or (math.floor(profile.level / 2) + 1)
+  local simRun = {
     fittings = {
       hull = profile.fittings.hull or 0,
       sails = profile.fittings.sails or 0,
@@ -111,77 +39,23 @@ function M.runBattle(profile)
       slot = profile.slot
     },
     blueprints = profile.blueprints or {},
-    mode = 'solo'
-  }
-
-  local capLevel = profile.captainLevel or (math.floor(profile.level / 2) + 1)
-  game.run.party = {
-    { role = 'captain', lvl = capLevel }
-  }
-
-  meta.data = { upgrades = {} }
-
-  -- Initialize player ship state
-  local player = {
-    hp = shipRules.getPlayerHullMax(1),
-    max = shipRules.getPlayerHullMax(1),
-    repairs = 3,
-    maxRepairs = 3,
-    dodge = 0,
-    range = 'FAR',
-    guns = shipRules.getPlayerGuns(1),
-    sails = shipRules.getPlayerSails(1),
-    gunsStage = 0,
-    sailsStage = 0,
-    ablaze = nil,
-    powder = {
-      round = 999999,
-      chain = data.SHOTS.chain.powder,
-      grape = data.SHOTS.grape.powder,
-      fire = data.SHOTS.fire.powder,
+    mode = 'solo',
+    party = {
+      { role = 'captain', lvl = capLevel }
     }
   }
 
-  -- Initialize foe ship state
-  local foe = {}
   local isBoss = profile.isBoss
-  if isBoss then
-    foe.max = data.KING.hull
-    foe.guns = 3
-    foe.sails = 1
-    foe.armor = data.KING.armor
-    foe.weak = data.KING.weak
-    foe.repairs = data.KING.repairs
-    foe.maxRepairs = data.KING.repairs
-    foe.bigshotKegs = data.KING.bigshotKegs
-    foe.maxBigshotKegs = data.KING.bigshotKegs
-    foe.volleyKegs = data.KING.volleyKegs
-    foe.maxVolleyKegs = data.KING.volleyKegs
-    foe.class = 'king'
-  else
-    local cStats = shipRules.getEnemyClassStats(profile.class, profile.level)
-    foe.max = cStats.maxHp
-    foe.guns = cStats.guns
-    foe.sails = cStats.sails
-    foe.armor = cStats.armor
-    foe.weak = cStats.weak
-    foe.repairs = 2
-    foe.maxRepairs = 2
-    foe.bigshotKegs = (profile.class == 'manowar') and 3 or 0
-    foe.maxBigshotKegs = foe.bigshotKegs
-    foe.volleyKegs = 0
-    foe.maxVolleyKegs = 0
-    foe.class = profile.class
-  end
-  foe.hp = foe.max
-  foe.gunsStage = 0
-  foe.sailsStage = 0
-  foe.ablaze = nil
-  foe.range = 'FAR'
-  foe.dodge = 0
-  foe.intent = nil
+  local player = shipRules.buildPlayerShip(simRun, 1)
+  local foe = shipRules.buildFoeState({
+    name = profile.name,
+    lv = profile.level,
+    boss = isBoss,
+    class = profile.class,
+    kraken = profile.class == 'kraken',
+  }, profile.level, false, 0)
 
-  decideFoeIntent(foe, player, profile.level, isBoss)
+  decideFoeIntent(foe, isBoss)
 
   local turns = 0
   while player.hp > 0 and foe.hp > 0 and turns < 100 do
@@ -198,7 +72,8 @@ function M.runBattle(profile)
     else
       action = 'fire'
       local weakShot = foe.weak
-      if weakShot and player.powder[weakShot] and player.powder[weakShot] > 0 and shipRules.isShotKnown(weakShot) then
+      if weakShot and player.powder[weakShot] and player.powder[weakShot] > 0
+        and shipRules.isShotKnownForRun(simRun, weakShot) then
         shotId = weakShot
       end
     end
@@ -209,7 +84,7 @@ function M.runBattle(profile)
       player.hp = math.min(player.max, player.hp + 15)
     elseif action == 'move' then
       player.range = (player.range == 'NEAR') and 'FAR' or 'NEAR'
-      local bigThreat = isBoss and foe.intent == 'bigshot'
+      local bigThreat = isBoss and (foe.intent == 'bigshot' or foe.intent == 'ram')
       player.dodge = shipRules.getDodgeChance(player.sails, player.sailsStage, bigThreat)
     elseif action == 'fire' then
       if shotId ~= 'round' then
@@ -227,30 +102,7 @@ function M.runBattle(profile)
         res = 'miss'
       end
 
-      local effectiveGuns = shipRules.getEffectiveStat(player.guns, player.gunsStage)
-      local armor = foe.armor or 0
-      local isWeak = (foe.weak == shotId)
-      local isResisted = (foe.armor > 0 and foe.weak ~= shotId)
-
-      local pwr = data.SHOTS[shotId].power
-      if player.range == 'NEAR' then
-        pwr = pwr + 2
-      end
-      local baseDmg = pwr + effectiveGuns - armor + math.random(0, 2)
-      local dmg = baseDmg
-      if res == 'perfect' then
-        dmg = math.floor(dmg * 1.5)
-      elseif res == 'miss' then
-        dmg = math.max(1, math.floor(dmg * 0.6))
-      end
-
-      local mult = 1
-      if isWeak then
-        mult = 1.5
-      elseif isResisted then
-        mult = 0.75
-      end
-      dmg = math.max(0, math.floor(dmg * mult))
+      local outcome = shipRules.resolveShotDamage(player, foe, shotId, res, math.random(0, 2))
 
       -- Foe dodge check
       local foeDodged = false
@@ -260,16 +112,8 @@ function M.runBattle(profile)
       end
 
       if not foeDodged then
-        foe.hp = math.max(0, foe.hp - dmg)
-        if res ~= 'miss' then
-          if shotId == 'chain' then
-            foe.sailsStage = math.max(-2, foe.sailsStage - 1)
-          elseif shotId == 'grape' then
-            foe.gunsStage = math.max(-2, foe.gunsStage - 1)
-          elseif shotId == 'fire' then
-            foe.ablaze = 3
-          end
-        end
+        foe.hp = math.max(0, foe.hp - outcome.damage)
+        shipRules.applyShotEffect(foe, shotId, res)
       end
     end
 
@@ -304,10 +148,7 @@ function M.runBattle(profile)
       end
     elseif fIntent == 'bigshot' then
       foe.bigshotKegs = foe.bigshotKegs - 1
-      local dmg = isBoss and 20 or (14 + profile.level)
-      if foe.gunsStage < 0 then
-        dmg = math.max(1, dmg + foe.gunsStage * 2)
-      end
+      local dmg = shipRules.foeAttackDamage(foe, fIntent, player.range, isBoss, profile.level, 0)
       local dodged = false
       if player.dodge > 0 then
         dodged = (math.random() < player.dodge)
@@ -318,10 +159,7 @@ function M.runBattle(profile)
       end
     elseif fIntent == 'volley' then
       foe.volleyKegs = foe.volleyKegs - 1
-      local dmg = 8 + profile.level
-      if foe.gunsStage < 0 then
-        dmg = math.max(1, dmg + foe.gunsStage)
-      end
+      local dmg = shipRules.foeAttackDamage(foe, fIntent, player.range, isBoss, profile.level, 0)
       -- Hit 1
       local dodged1 = false
       if player.dodge > 0 then
@@ -341,25 +179,8 @@ function M.runBattle(profile)
         player.hp = math.max(0, player.hp - dmg)
       end
     else -- fire / default
-      local dmg
-      if isBoss then
-        local base = 3 + math.floor(profile.level / 2)
-        if player.range ~= 'NEAR' then
-          base = base - 2
-        end
-        dmg = base + math.random(0, 2)
-        if foe.gunsStage < 0 then
-          dmg = math.max(1, dmg + foe.gunsStage * 2)
-        end
-      else
-        local effectiveGuns = shipRules.getEffectiveStat(foe.guns or 1, foe.gunsStage)
-        local pwr = (foe.class == 'fireship') and 5 or 7
-        if player.range == 'NEAR' then
-          pwr = pwr + 2
-        end
-        dmg = pwr + effectiveGuns + math.random(0, 2)
-      end
-
+      local dmg = shipRules.foeAttackDamage(
+        foe, fIntent or 'fire', player.range, isBoss, profile.level, math.random(0, 2))
       local dodged = false
       if player.dodge > 0 then
         dodged = (math.random() < player.dodge)
@@ -382,7 +203,7 @@ function M.runBattle(profile)
       if player.hp <= 0 then break end
     end
 
-    decideFoeIntent(foe, player, profile.level, isBoss)
+    decideFoeIntent(foe, isBoss)
   end
 
   return (player.hp > 0 and foe.hp <= 0), turns
