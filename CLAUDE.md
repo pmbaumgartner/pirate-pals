@@ -17,6 +17,7 @@ Run commands from the repo root.
 - `src/dev/*` is loaded only when a dev flag is present; do not add dev-only dependencies to the default require graph.
 - Use `love . --seed=N --warp=<scenario>` to reproduce stateful bugs; scenario names live in `src/dev/scenarios.lua`.
 - Use `love . --script=path.lua` for scripted repros; helpers are defined in `src/dev/script.lua`.
+- A script must end with `print(...)` + `love.event.quit(0)` itself or the game keeps running idle after it finishes; also pass `--speed=8` explicitly — `--smoke` implies it, bare `--script=` does not.
 - Keep dev-flag and script failures on the `FAIL: <msg>` plus nonzero-exit path, not uncaught LÖVE errors, because the interactive error screen can hang headless runs.
 - If sea hex layout constants in `src/states/sail.lua` change, update `src/dev/script.lua`'s `tapCell` math so scripted sea taps still hit cells.
 - Under `--live`, `love.filesystem` merges the save dir into the root; keep lurker reloads limited to `main.lua` and first-party `src/` files.

@@ -64,6 +64,24 @@ shipBattle.start(game.run.sea.enemies[1])
 expect(engine.cur == 'shipBattle', 'shipBattle.start did not switch state')
 wait(2.5)
 
+-- Telegraph gallery: foe intents are pure render-side during the player's
+-- pick phase, so poke each one in and shot it for the CI artifact.
+local sbTel = shipBattle.sb
+waitUntil(function() return sbTel.turn == 'you' and not engine.trans.on end, 5)
+for _, intent in ipairs({ 'fire', 'bigshot', 'volley', 'fix' }) do
+  sbTel.foe.intent = intent
+  wait(0.1)
+  shot('ship-telegraph-' .. intent)
+end
+
+-- CREW SPECIALS submenu: the highlighted special's desc renders at the
+-- bottom of the box.
+sbTel.subOpen = true
+sbTel.sub = 0
+wait(0.1)
+shot('ship-sub-desc')
+sbTel.subOpen = false
+
 personBattle.start(game.run.sea.enemies[1])
 expect(engine.cur == 'personBattle', 'personBattle.start did not switch state')
 for _ = 1, 8 do
@@ -119,14 +137,11 @@ tap('z')
 wait(0.3)
 expect(#game.run.log == logBefore + 1, 'accepting the first recruit did not append a voyage log moment')
 expect(game.run.log[#game.run.log].first, 'first-recruit log entry should be flagged first')
-
--- Declining a recruit benches them instead of discarding them (3.5).
-local benchBefore = #game.run.bench
-loot.start({ { type = 'recruit', pirate = game.makePirate('medic', 'BENCHY', 1) } }, 'TEST BENCH')
-settle()
-tap('x')
-wait(0.3)
-expect(#game.run.bench == benchBefore + 1, 'declined recruit did not go to the bench')
+local sparkyJoined = false
+for _, p in ipairs(game.run.crew) do
+  if p.name == 'SPARKY' then sparkyJoined = true end
+end
+expect(sparkyJoined, 'recruit card did not add SPARKY to the crew')
 
 -- Tuckered-out pals: napping blocks party join and decrements on new-sea
 -- entry (genSea is the "entering a new sea" hook — see game.lua).
@@ -142,18 +157,6 @@ shot('crew')
 engine.setState('tailor')
 wait(1.0)
 shot('tailor')
-
--- Recruit bench tab: BENCHY (declined above) can be picked up into the crew.
-tap('right')
-wait(0.2)
-shot('tailor-bench')
-local crewBefore = #game.run.crew
-tap('z')
-wait(0.3)
-expect(#game.run.crew == crewBefore + 1, 'bench pickup did not add the pal to the crew')
-expect(#game.run.bench == 0, 'bench should be empty after picking up its only pal')
-tap('left')
-wait(0.2)
 
 -- SAILS tab (color selector): a free mid-run re-pick at the tailor.
 tap('left')
@@ -305,6 +308,62 @@ wait(0.6)
 expect(thief.soggy, 'thief should be soggy after splash')
 expect(thief.hp == 3, 'thief should take 7 damage from splash (10 - 7 = 3)')
 shot('gimmick')
+
+-- Battle-readability shots: stage a boarding with every foe parked within
+-- two tiles of a pal (closest first, so badges sit adjacent), then walk one
+-- attack through act menu -> target preview -> floaters, shotting each.
+local pbModel = require 'src.states.person_battle.model'
+personBattle.start(game.run.sea.enemies[1], { 'grunt', 'grunt', 'brute' })
+wait(0.3)
+local pbI = personBattle.pb
+local pal1 = nil
+for _, u in ipairs(pbI.units) do
+  if u.side == 'p' and not pal1 then pal1 = u end
+end
+local spots = {}
+for _, t in ipairs(pbI.deckList) do
+  local d = grid.manhattan(t[1], t[2], pal1.x, pal1.y)
+  if d >= 1 and d <= 2 and not pbModel.unitAt(t[1], t[2]) then
+    spots[#spots + 1] = t
+  end
+end
+table.sort(spots, function(a, b)
+  return grid.manhattan(a[1], a[2], pal1.x, pal1.y) < grid.manhattan(b[1], b[2], pal1.x, pal1.y)
+end)
+for _, u in ipairs(pbI.units) do
+  if u.side == 'e' and #spots > 0 then
+    local s = table.remove(spots, 1)
+    u.x, u.y, u.fx, u.fy = s[1], s[2], s[1], s[2]
+  end
+end
+require('src.states.person_battle.ai').planFoeIntents()
+expect(pbI.phase == 'party', 'staged boarding not on the party phase')
+-- Let the intro banner and spawn barks clear so the badges are the shot.
+waitUntil(function() return engine.banner.t >= engine.banner.dur end, 5)
+wait(1.2)
+shot('boarding-intents')
+
+pbI.pl.p1.cursor.x, pbI.pl.p1.cursor.y = pal1.x, pal1.y
+tap('z') -- select the pal
+wait(0.2)
+tap('z') -- move in place -> act menu
+wait(0.2)
+tap('down') -- GUARD: the solo panel now shows every action's desc line
+wait(0.2)
+shot('act-desc-guard')
+tap('up')
+wait(0.2)
+tap('z') -- ATTACK (a foe is adjacent by construction)
+wait(0.2)
+expect(pbI.pl.p1.stage == 'target', 'staged attack did not reach the target stage')
+shot('damage-preview')
+tap('z') -- confirm the attack (opens the timing bar)
+waitUntil(function() return require('src.timing').on end, 3)
+wait(0.5) -- let the pointer travel toward the hit window
+tap('z') -- land the hit
+waitUntil(function() return not require('src.timing').on and #engine.floaters > 0 end, 5)
+shot('floaters')
+wait(1.0)
 
 -- New shape-gallery pass: exercise BFS + intents on every non-classic deck,
 -- and screenshot icy/volcano variants on tidepool and barricade.
@@ -540,6 +599,11 @@ tap('z')
 wait(0.2)
 expect(pbT.pl.p1.stage == 'act', 'P1 move-in-place did not open the act menu')
 shot('act-menu')
+tap('s') -- GUARD (P1 is WASD in captains): the half-panel shows a desc line
+wait(0.2)
+shot('coop-act-desc')
+tap('w')
+wait(0.2)
 tap('x')
 wait(0.2)
 expect(pbT.pl.p1.stage == 'move', 'act menu back did not return to the move stage')

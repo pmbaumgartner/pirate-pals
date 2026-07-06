@@ -1,5 +1,5 @@
--- Loot reveal: rewards shown one card at a time. Recruit cards are the only
--- interactive kind (Z accepts into crew/party, X declines).
+-- Loot reveal: rewards shown one card at a time. Recruit cards welcome the
+-- pal aboard on advance; perk/trade cards are the interactive ones.
 local util = require 'src.util'
 local palette = require 'src.palette'
 local font = require 'src.font'
@@ -92,7 +92,7 @@ engine.states.loot = {
     if loot.done then return end
     local part = loot.parts[loot.i + 1]
     if part.type == 'recruit' then
-      if input.jp('a') then
+      if input.jp('a') or input.jp('b') then
         local run = game.run
         -- Voyage Log: the very first recruit of the voyage, caught
         -- by checking crew size against the starting roster (2 solo, 4 in
@@ -109,11 +109,6 @@ engine.states.loot = {
         end
         SFX.fanfare()
         engine.addParts(VW / 2, 90, 16, CO.gold, 50)
-        advance()
-      elseif input.jp('b') then
-        SFX.back()
-        local run = game.run
-        run.bench[#run.bench + 1] = part.pirate
         advance()
       end
     elseif part.type == 'perk' then
@@ -210,7 +205,7 @@ engine.states.loot = {
       sprites.drawPirate(part.pirate.role, 'none', bx + 14, by + 14, false, 2, nil, game.palColor(part.pirate))
       font.drawText(part.pirate.name, VW / 2 + 16, by + 10, CO.gold, 1, 'center')
       font.drawText(data.ROLES[part.pirate.role].label .. ' LV' .. part.pirate.lvl, VW / 2 + 16, by + 20, CO.gray, 1, 'center')
-      font.drawText('WANTS TO JOIN!', VW / 2 + 16, by + 32, CO.white, 1, 'center')
+      font.drawText('JOINS THE CREW!', VW / 2 + 16, by + 32, CO.white, 1, 'center')
       -- Legends across voyages: a returning pal who earned
       -- highlights last voyage flexes one of them here instead of the
       -- owner tag, which only applies once the party's still got room.
@@ -232,7 +227,6 @@ engine.states.loot = {
       elseif legend then
         font.drawText(legend[1], VW / 2 + 16, by + 40, CO.gray, 1, 'center')
       end
-      font.drawText(input.promptKey(input.p1, 'a') .. ' YES / ' .. input.promptKey(input.p1, 'b') .. ' NO', VW / 2 + 16, by + 50, CO.paper, 1, 'center')
     elseif part.type == 'clear' then
       font.drawText('SEA CLEAR!', VW / 2, by + 10, CO.gold, 2, 'center')
       font.drawText('BONUS +' .. part.n .. ' GOLD', VW / 2, by + 34, CO.paper, 1, 'center')
@@ -277,8 +271,8 @@ engine.states.loot = {
       gfx.setColor(i <= loot.i and CO.gold or CO.grayD)
       gfx.rectangle('fill', VW / 2 - #loot.parts * 4 + i * 8, 158, 5, 5)
     end
-    -- perk/trade draw their hint above, inside the card; recruit has its own
-    if part.type ~= 'perk' and part.type ~= 'trade' and part.type ~= 'recruit' then
+    -- perk/trade draw their hint above, inside the card
+    if part.type ~= 'perk' and part.type ~= 'trade' then
       font.drawText(input.promptKey(input.p1, 'a') .. ' NEXT', VW / 2, 168, CO.gray, 1, 'center')
     end
   end,

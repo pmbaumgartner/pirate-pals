@@ -1,6 +1,6 @@
 -- Tailor shop at the dock: buy hats with gold (milestone hats can't be
--- bought here; they unlock from the treasure log), pick up benched pals,
--- and re-pick crew colors for free on the SAILS tab (the tailor sews sails).
+-- bought here; they unlock from the treasure log), and re-pick crew colors
+-- for free on the SAILS tab (the tailor sews sails).
 local palette = require 'src.palette'
 local font = require 'src.font'
 local sprites = require 'src.sprites'
@@ -18,8 +18,8 @@ local VW, VH = 320, 180
 
 local tl = nil
 
-local TABS = { 'shop', 'bench', 'sails' }
-local TAB_LABEL = { shop = 'SHOP', bench = 'PORT', sails = 'SAILS' }
+local TABS = { 'shop', 'sails' }
+local TAB_LABEL = { shop = 'SHOP', sails = 'SAILS' }
 
 local function shopItems()
   local items = {}
@@ -86,33 +86,6 @@ engine.states.tailor = {
       end
       return
     end
-    if tl.tab == 'bench' then
-      local n = #run.bench
-      if n == 0 then
-        if input.jp('b') then SFX.back(); engine.setState('sail') end
-        return
-      end
-      if input.rp('up') then tl.i = (tl.i + n - 1) % n; SFX.move() end
-      if input.rp('down') then tl.i = (tl.i + 1) % n; SFX.move() end
-      if input.jp('a') then
-        if #run.crew < 10 then
-          local p = table.remove(run.bench, tl.i + 1)
-          run.crew[#run.crew + 1] = p
-          SFX.fanfare()
-          engine.addFloat(240, 60, p.name .. ' JOINED!', CO.gold, 1)
-          tl.i = math.max(0, math.min(tl.i, #run.bench - 1))
-        else
-          SFX.bump()
-          engine.addFloat(240, 60, 'CREW IS FULL!', CO.red, 1)
-        end
-      end
-      if input.jp('b') then
-        SFX.back()
-        engine.setState('sail')
-      end
-      return
-    end
-
     local items = shopItems()
     local n = #items
     if input.rp('up') then tl.i = (tl.i + n - 1) % n; SFX.move() end
@@ -212,29 +185,6 @@ engine.states.tailor = {
       return
     end
 
-    if tl.tab == 'bench' then
-      if #run.bench == 0 then
-        font.drawText('NOBODY WAITING YET!', VW / 2, 90, CO.gray, 1, 'center')
-      else
-        for i = 0, #run.bench - 1 do
-          local p = run.bench[i + 1]
-          local y2 = 30 + i * 13
-          local sel = i == tl.i
-          if sel then
-            gfx.setColor(CO.uiBg)
-            gfx.rectangle('fill', 8, y2 - 2, 168, 12)
-          end
-          font.drawText((sel and '>' or ' ') .. p.name, 12, y2, sel and CO.gold or CO.white, 1)
-          font.drawText(data.ROLES[p.role].label .. ' LV' .. p.lvl, 172, y2, CO.gray, 1, 'right')
-        end
-      end
-      gfx.setColor(CO.ink)
-      gfx.rectangle('fill', 0, VH - 14, VW, 14)
-      font.drawText('< > SHOP  Z PICK UP  X LEAVE', VW / 2, VH - 10, CO.gray, 1, 'center')
-      engine.drawFx()
-      return
-    end
-
     local items = shopItems()
     for i = 0, #items - 1 do
       local it = items[i + 1]
@@ -267,7 +217,7 @@ engine.states.tailor = {
     engine.drawFx()
     gfx.setColor(CO.ink)
     gfx.rectangle('fill', 0, VH - 14, VW, 14)
-    font.drawText('< > BENCH  Z BUY  X LEAVE', VW / 2, VH - 10, CO.gray, 1, 'center')
+    font.drawText('< > SAILS  Z BUY  X LEAVE', VW / 2, VH - 10, CO.gray, 1, 'center')
   end,
 }
 

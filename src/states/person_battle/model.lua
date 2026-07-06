@@ -642,8 +642,9 @@ end
 
 function M.actMenu(u)
   local items = {
-    { id = 'atk', label = 'ATTACK', ok = (#M.targetsOf(u) > 0) or (#M.adjacentCrates(u) > 0) },
-    { id = 'grd', label = 'GUARD', ok = true },
+    { id = 'atk', label = 'ATTACK', ok = (#M.targetsOf(u) > 0) or (#M.adjacentCrates(u) > 0),
+      desc = 'BONK A FOE IN RANGE' },
+    { id = 'grd', label = 'GUARD', ok = true, desc = 'TAKE HALF DAMAGE' },
   }
   local sd = data.ROLES[u.role].spec
   local sOk = not u.specUsed
@@ -653,7 +654,7 @@ function M.actMenu(u)
     if u.role == 'sharpshooter' then sOk = #M.targetsOf(u, 99) > 0 end
   end
   items[#items + 1] = { id = 'spc', label = sd.name, ok = sOk, desc = sd.desc }
-  items[#items + 1] = { id = 'stay', label = 'STAY', ok = true }
+  items[#items + 1] = { id = 'stay', label = 'STAY', ok = true, desc = 'DO NOTHING, SAVE STRENGTH' }
   return items
 end
 

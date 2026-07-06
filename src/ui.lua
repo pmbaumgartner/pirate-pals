@@ -29,8 +29,9 @@ end
 -- Intent-telegraph icon on a dark badge plate, so every icon reads at the
 -- same contrast regardless of its own fill (solid-black bomb vs thin gray
 -- wrench) or what it overlaps. uiBg2 rather than uiBg: the bomb icon is
--- pure ink and would vanish on an ink-colored plate.
-function M.drawIntentIcon(name, x, y, scale)
+-- pure ink and would vanish on an ink-colored plate. borderColor lets the
+-- caller color-code the badge frame per intent (defaults to ink).
+function M.drawIntentIcon(name, x, y, scale, borderColor)
   scale = scale or 1
   local pad = scale
   local s = 12 * scale + 2 * pad
@@ -38,7 +39,7 @@ function M.drawIntentIcon(name, x, y, scale)
   gfx.setColor(CO.uiBg2[1], CO.uiBg2[2], CO.uiBg2[3], 0.85)
   gfx.rectangle('fill', px + 1, py, s - 2, s)
   gfx.rectangle('fill', px, py + 1, s, s - 2)
-  gfx.setColor(CO.ink)
+  gfx.setColor(borderColor or CO.ink)
   gfx.rectangle('fill', px + 1, py, s - 2, 1)
   gfx.rectangle('fill', px + 1, py + s - 1, s - 2, 1)
   gfx.rectangle('fill', px, py + 1, 1, s - 2)

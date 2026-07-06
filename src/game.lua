@@ -460,7 +460,7 @@ function M.newGame(mode, colors)
     voyage = { sea = 1, length = meta.data.golden and 9 or 8 },
     hints = {}, wins = 0,
     owners = {},
-    bench = {}, bonds = {}, bondsMade = {}, log = {},
+    bonds = {}, bondsMade = {}, log = {},
     metaTier = meta.data.tier or 0,
     seenDecks = {},
   }
@@ -683,7 +683,14 @@ function M.load()
   -- Pre-color-selector saves keep their old look: white sails, and the
   -- green P2 sails shipP2's hull tint used to provide.
   saved.colors = saved.colors or { p1 = 'white', p2 = saved.ship2 and 'green' or nil }
-  saved.bench = saved.bench or {}
+  -- The recruit bench was removed; merge any benched pals from old saves
+  -- into the crew (up to the 10 cap) so they aren't stranded.
+  if saved.bench then
+    for _, p in ipairs(saved.bench) do
+      if #saved.crew < 10 then saved.crew[#saved.crew + 1] = p end
+    end
+    saved.bench = nil
+  end
   saved.bonds = saved.bonds or {}
   saved.bondsMade = saved.bondsMade or {}
   saved.log = saved.log or {}

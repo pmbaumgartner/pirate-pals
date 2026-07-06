@@ -51,6 +51,8 @@ local function drawPlayerPanel(player, x0)
       local c = not it.ok and CO.grayD or (i == pl.menu and col or CO.white)
       font.drawText((i == pl.menu and '>' or ' ') .. it.label, x0 + 16, 134 + i * 10, c, 1)
     end
+    local desc = items[pl.menu + 1].desc
+    if desc then font.drawText(desc, x0, 173, CO.gray, 1) end
   elseif pl.stage == 'target' then
     font.drawText('PICK A TARGET!', x0, 148, CO.paper, 1)
     font.drawText('< > AIM  ' .. go .. ' GO  ' .. back .. ' BACK', x0, 160, CO.gray, 1)
@@ -87,17 +89,28 @@ end
 
 -- lo-hi(!) label plus one line per modifier note, stacked upward from
 -- (cx, topY) so it never collides with the target's own sprite/HP bar.
+-- Each line sits on a translucent ink strip (same trick as ui.drawBar's
+-- ink backing) so the numbers stay legible over sprites and deck art.
+local function inkStrip(x, y, w, alpha)
+  gfx.setColor(CO.ink[1], CO.ink[2], CO.ink[3], alpha)
+  gfx.rectangle('fill', x, y, w, 7)
+end
+
 local function drawDamagePreview(cx, topY, pv)
   local label = pv.lo == pv.hi and ('HITS FOR ' .. pv.lo .. '!') or (pv.lo .. '-' .. pv.hi .. '!')
+  local lw = font.textWidth(label, 1)
+  local tagX = cx + math.floor(lw / 2) + 10
+  local tagW = font.textWidth('*x2', 1)
+  local left = cx - math.floor(lw / 2) - 2
+  inkStrip(left, topY - 1, (tagX + math.ceil(tagW / 2) + 2) - left, 0.65)
   font.drawTextO(label, cx, topY, CO.white, 1, 'center')
-  font.drawTextO('*x2', cx + math.floor(font.textWidth(label, 1) / 2) + 10, topY, CO.gold, 1, 'center')
+  font.drawTextO('*x2', tagX, topY, CO.gold, 1, 'center')
   local ny = topY + 8
   for _, n in ipairs(pv.notes) do
-    if n == '@' then
-      font.drawTextO('@', cx, ny, CO.gold, 1, 'center')
-    else
-      font.drawTextO(n .. '!', cx, ny, CO.foam, 1, 'center')
-    end
+    local txt = n == '@' and '@' or (n .. '!')
+    local w = font.textWidth(txt, 1)
+    inkStrip(cx - math.floor(w / 2) - 2, ny - 1, w + 4, 0.65)
+    font.drawTextO(txt, cx, ny, n == '@' and CO.gold or CO.foam, 1, 'center')
     ny = ny + 7
   end
 end
@@ -198,6 +211,9 @@ function M.draw()
   end
 
   -- Target highlights + attack/shove previews on the picked target.
+  -- Preview text is collected here but flushed after the units render, so
+  -- sprites in the rows above can never cover the numbers.
+  local previews = {}
   for _, player in ipairs({ 'p1', 'p2' }) do
     local pl = pb.pl[player]
     if pl.stage == 'target' and (player == 'p1' or isCoop) then
@@ -210,12 +226,17 @@ function M.draw()
           end
           local atkBase, popts = previewParamsFor(pl)
           if atkBase and not tg.isCrate then
-            drawDamagePreview(tx + 8, ty - 24, model.previewDamage(pl.sel, tg, atkBase, popts))
+            local pv = model.previewDamage(pl.sel, tg, atkBase, popts)
+            previews[#previews + 1] = function() drawDamagePreview(tx + 8, ty - 24, pv) end
           elseif pl.action == 'shove' then
             local outcome = shoveDestination(pl.sel, tg)
             local ghx, ghy = model.px(outcome.x, outcome.y)
             ui.outline(ghx, ghy, 16, 16, CO.orange, 0.6)
-            if outcome.impact.preview then font.drawTextO(outcome.impact.preview, ghx + 8, ghy - 12, CO.orange, 1, 'center') end
+            if outcome.impact.preview then
+              previews[#previews + 1] = function()
+                font.drawTextO(outcome.impact.preview, ghx + 8, ghy - 12, CO.orange, 1, 'center')
+              end
+            end
           end
         else
           ui.outline(tx, ty, 16, 16, pl.action == 'heal' and CO.green or CO.red, 0.4)
@@ -229,7 +250,8 @@ function M.draw()
       if it and it.id == 'spc' and it.ok then
         for _, t in ipairs(model.targetsOf(pl.sel, 1)) do
           local tx, ty = model.px(t.x, t.y)
-          drawDamagePreview(tx + 8, ty - 24, model.previewDamage(pl.sel, t, pl.sel.atk + pl.sel.buff + 2, {}))
+          local pv = model.previewDamage(pl.sel, t, pl.sel.atk + pl.sel.buff + 2, {})
+          previews[#previews + 1] = function() drawDamagePreview(tx + 8, ty - 24, pv) end
         end
       end
     end
@@ -306,14 +328,15 @@ function M.draw()
   -- enemy-turn noise), plus a red pulse on the threatened pal that reads
   -- identically to the SLAM hazard telegraph.
   if pb.phase == 'party' then
-    local intentIcons = { attack = 'icon_sword', move = 'icon_move', smash = 'icon_planks' }
+    local miniIcons = { attack = 'mini_sword', move = 'mini_boot', smash = 'mini_planks' }
     for _, u in ipairs(pb.units) do
       if u.alive and u.intent then
         local ux, uy = model.px(u.x, u.y)
-        -- Bare icon, no ui.drawIntentIcon badge: on this 16px grid an
-        -- opaque plate blots out whatever stands in the cell above, and
-        -- white icons already carry enough contrast on the brown deck.
-        sprites.draw(intentIcons[u.intent.kind] or 'icon_move', ux + 2, uy - 12)
+        -- 8x8 mini badge on the enemy's own tile, top-right: it only nudges
+        -- ~3px into the cell above instead of covering it, and the baked ink
+        -- outline keeps it readable over adjacent sprites without an opaque
+        -- badge plate.
+        sprites.draw(miniIcons[u.intent.kind] or 'mini_boot', ux + 9, uy - 3)
         if u.intent.kind == 'attack' and u.intent.target and u.intent.target.alive
           and math.floor(gt * 6) % 2 == 0 then
           local tx, ty = model.px(u.intent.target.x, u.intent.target.y)
@@ -325,6 +348,8 @@ function M.draw()
       end
     end
   end
+
+  for _, fn in ipairs(previews) do fn() end
 
   -- Cursors: gold for P1, green for P2, both live during the party turn.
   if pb.phase == 'party' then

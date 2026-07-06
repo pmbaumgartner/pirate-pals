@@ -233,17 +233,17 @@ local HATS = {
 
 -- Ship-battle foe telegraph icons: bomb (fire), wrench (fix), sail (move).
 local ICON_FIRE = {
-  "............",
-  "............",
-  "....KKKK....",
-  "...KKKKKK...",
-  "..KKKKKKKK..",
-  "..KKKKKKKK..",
-  "..KKKKKKKK..",
-  "...KKKKKK...",
-  "....KKKK....",
-  ".....YY.....",
   "....Y.......",
+  ".....YY.....",
+  "....KKKK....",
+  "...KKKKKK...",
+  "..KKKKKKKK..",
+  "..KKKKKKKK..",
+  "..KKKKKKKK..",
+  "...KKKKKK...",
+  "....KKKK....",
+  "............",
+  "............",
   "............",
 }
 
@@ -306,6 +306,76 @@ local ICON_PLANKS = {
   "..bB....Bb..",
   ".bB......Bb.",
   "............",
+  "............",
+}
+
+-- Boarding-telegraph minis: 8x8 so they tuck into a tile corner instead of
+-- covering the cell above. The ink outline is baked into the sprite — it
+-- replaces the badge plate for separation — and each intent gets its own
+-- silhouette + color so they read apart at a glance.
+local MINI_SWORD = {
+  ".....KK.",
+  "....KRRK",
+  "...KRRK.",
+  "..KRRK..",
+  "KKKRK...",
+  "KYYKK...",
+  "KYYYK...",
+  "KKKKK...",
+}
+
+local MINI_BOOT = {
+  "..KKK...",
+  ".KWWK...",
+  ".KWWK...",
+  ".KWWKK..",
+  ".KWWWWK.",
+  ".KWlllK.",
+  ".KllllK.",
+  "..KKKKK.",
+}
+
+local MINI_PLANKS = {
+  "KK....KK",
+  "KOK..KOK",
+  ".KOKKOK.",
+  "..KOOK..",
+  "..KOOK..",
+  ".KOKKOK.",
+  "KOK..KOK",
+  "KK....KK",
+}
+
+-- Ship-telegraph variants: bigshot is one oversized ball (red glint),
+-- volley two small offset balls, so shape — not scale — tells them apart
+-- from the plain icon_fire cannonball.
+local ICON_BIGSHOT = {
+  "....YY......",
+  "...KKKKKK...",
+  "..KKKKKKKK..",
+  ".KKRRKKKKKK.",
+  ".KKRKKKKKKK.",
+  ".KKKKKKKKKK.",
+  ".KKKKKKKKKK.",
+  ".KKKKKKKKKK.",
+  "..KKKKKKKK..",
+  "...KKKKKK...",
+  "............",
+  "............",
+}
+
+local ICON_VOLLEY = {
+  "............",
+  "....KKKK....",
+  "...KKKKKK...",
+  "...KWKKKK...",
+  "...KKKKKK...",
+  "....KKKK....",
+  "..KKKK......",
+  ".KKKKKK.....",
+  ".KWKKKK.....",
+  ".KKKKKK.....",
+  "..KKKK......",
   "............",
 }
 
@@ -616,6 +686,11 @@ function M.build()
   makeSprite('icon_move', ICON_MOVE)
   makeSprite('icon_sword', ICON_SWORD)
   makeSprite('icon_planks', ICON_PLANKS)
+  makeSprite('icon_bigshot', ICON_BIGSHOT)
+  makeSprite('icon_volley', ICON_VOLLEY)
+  makeSprite('mini_sword', MINI_SWORD)
+  makeSprite('mini_boot', MINI_BOOT)
+  makeSprite('mini_planks', MINI_PLANKS)
   makeSprite('kingSil', KING_SIL)
   makeSprite('crate', CRATE)
   makeSprite('perch', PERCH)

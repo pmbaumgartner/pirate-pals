@@ -804,7 +804,9 @@ engine.states.shipBattle = {
     -- same as always.
     local pickPhase = (sb.fleet and sb.turn == 'select') or (not sb.fleet and sb.turn == 'you')
     if pickPhase and not sb.over and sb.foe.intent then
-      local iconName = ({ fire = 'icon_fire', bigshot = 'icon_fire', volley = 'icon_fire', fix = 'icon_fix', move = 'icon_move' })[sb.foe.intent]
+      local iconName = ({ fire = 'icon_fire', bigshot = 'icon_bigshot', volley = 'icon_volley', fix = 'icon_fix', move = 'icon_move' })[sb.foe.intent]
+      local intentCol = ({ fire = CO.orange, bigshot = CO.red, volley = CO.orange, fix = CO.green, move = CO.white })[sb.foe.intent]
+      local label = ({ fire = 'SHOT!', bigshot = 'BIG SHOT!', volley = 'DOUBLE SHOT!', fix = 'PATCHING!', move = 'MOVING!' })[sb.foe.intent]
       local tx, ty
       if sb.fleet and sb.foe.intent ~= 'fix' then
         tx, ty = shipXY(sb.foe.target)
@@ -812,15 +814,14 @@ engine.states.shipBattle = {
         tx, ty = fpx, fpy
       end
       if iconName then
-        local iconScale = sb.foe.intent == 'bigshot' and 2 or 1
-        -- Extra lift at 2x keeps the badge plate off the ship's mast.
-        ui.drawIntentIcon(iconName, tx + 8 - 6 * iconScale,
-          ty - 22 - 8 * (iconScale - 1) + (sb.fleet and 0 or bobF), iconScale)
+        ui.drawIntentIcon(iconName, tx + 2, ty - 22 + (sb.fleet and 0 or bobF), 1, intentCol)
       end
-      if sb.foe.intent == 'bigshot' then
-        font.drawTextO('BIG SHOT!', tx + 16, ty - 34, CO.red, 1, 'center')
-      elseif sb.foe.intent == 'volley' then
-        font.drawTextO('DOUBLE SHOT!', tx + 16, ty - 34, CO.orange, 1, 'center')
+      if label then
+        -- Clamp the centered label so it never draws past the canvas edge
+        -- (the scripted-run bounds invariant is absolute).
+        local w = font.textWidth(label, 1)
+        local lx = util.clamp(tx + 16, w / 2 + 2, VW - w / 2 - 2)
+        font.drawTextO(label, lx, ty - 34, intentCol or CO.white, 1, 'center')
       end
     end
 
@@ -878,7 +879,10 @@ engine.states.shipBattle = {
               local pi = first + row
               if pi <= #plist - 1 then
                 local pp = plist[pi + 1]
-                font.drawText((pi == sh.sub and '>' or ' ') .. pp.name, h.x, 163 + row * 8, pi == sh.sub and h.col or CO.white, 1)
+                -- No spare row for a desc line here, so the special's name
+                -- rides inline after the crew name instead.
+                font.drawText((pi == sh.sub and '>' or ' ') .. pp.name .. ' - ' .. data.ROLES[pp.role].ship.name,
+                  h.x, 163 + row * 8, pi == sh.sub and h.col or CO.white, 1)
               end
             end
           else
@@ -914,7 +918,7 @@ engine.states.shipBattle = {
       if sb.subOpen then
         local party = game.run.party
         local n = #party
-        local bw, bh = 170, n * 12 + 16
+        local bw, bh = 170, n * 12 + 24
         local bx3, by3 = (VW - bw) / 2, 132 - bh
         gfx.setColor(CO.uiBg)
         gfx.rectangle('fill', bx3, by3, bw, bh)
@@ -927,6 +931,7 @@ engine.states.shipBattle = {
           font.drawText((i == sb.sub and '>' or ' ') .. pp.name .. ' - ' .. data.ROLES[pp.role].ship.name,
             bx3 + 6, by3 + 14 + i * 12, col, 1)
         end
+        font.drawText(data.ROLES[party[sb.sub + 1].role].ship.desc, bx3 + 6, by3 + bh - 10, CO.gray, 1)
       end
     end
     timing.draw()

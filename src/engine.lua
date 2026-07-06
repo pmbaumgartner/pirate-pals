@@ -8,6 +8,8 @@ local font = require 'src.font'
 local CO = palette.CO
 local gfx = love.graphics
 
+local VW, VH = 320, 180
+
 local M = {
   states = {},
   cur = 'title',
@@ -45,6 +47,27 @@ function M.showToast(text, color, dur)
 end
 
 function M.addFloat(x, y, text, color, sc)
+  -- Bump up past any live floater nearby so stacked spawns ("-5" then
+  -- "+XP" on the same unit) never pile onto each other. Floor at y=16: a
+  -- floater rises ~13px over its life and text may never leave the canvas
+  -- (the scripted-run bounds invariant), so a tall stack re-overlaps at the
+  -- ceiling instead of drawing above y=0.
+  -- Same invariant horizontally: a floater near a canvas edge (e.g. a bark
+  -- over a ship on the leftmost sea column) slides inward instead of
+  -- clipping. +-2 covers the outline pass and the backing strip.
+  local w = font.textWidth(text, sc or 1)
+  local half = math.floor(w / 2)
+  x = math.max(half + 2, math.min(x, VW - (w - half) - 2))
+  local bumped = true
+  while bumped do
+    bumped = false
+    for _, f in ipairs(M.floaters) do
+      if y > 16 and math.abs(f.x - x) < 10 and math.abs(f.y - y) < 7 then
+        y = math.max(f.y - 7, 16)
+        bumped = true
+      end
+    end
+  end
   M.floaters[#M.floaters + 1] = { x = x, y = y, text = text, color = color or CO.white, sc = sc or 1, t = 0, dur = 0.9 }
 end
 
@@ -100,12 +123,17 @@ function M.drawFx()
     local s = (p.t / p.dur < 0.6) and 2 or 1
     gfx.rectangle('fill', util.round(p.x), util.round(p.y), s, s)
   end
+  local FLOAT_BACKING = true -- ink strip behind floaters; toggle off if it reads too heavy
   for _, f in ipairs(M.floaters) do
-    font.drawTextO(f.text, util.round(f.x), util.round(f.y), f.color, f.sc, 'center')
+    local fx, fy = util.round(f.x), util.round(f.y)
+    if FLOAT_BACKING then
+      local w = font.textWidth(f.text, f.sc)
+      gfx.setColor(CO.ink[1], CO.ink[2], CO.ink[3], 0.5)
+      gfx.rectangle('fill', fx - math.floor(w / 2) - 2, fy - 1, w + 4, 5 * f.sc + 2)
+    end
+    font.drawTextO(f.text, fx, fy, f.color, f.sc, 'center')
   end
 end
-
-local VW, VH = 320, 180
 
 function M.drawBanner()
   local b = M.banner
