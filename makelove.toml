@@ -3,9 +3,9 @@ love_version = "11.4"
 default_targets = ["win64", "macos"]
 build_directory = "build"
 love_files = [
-    "+main.lua",
-    "+conf.lua",
-    "+src/**",
+    "+./main.lua",
+    "+./conf.lua",
+    "+./src/**",
 ]
 
 [windows]
