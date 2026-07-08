@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   luacheck:
     runs-on: ubuntu-latest
@@ -77,3 +80,46 @@ jobs:
             build/${{ matrix.target }}/*.zip
             build/${{ matrix.artifact }}.tar.gz
           if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Download Windows package
+        uses: actions/download-artifact@v4
+        with:
+          name: pirate-pals-windows
+          path: release-assets
+      - name: Download macOS package
+        uses: actions/download-artifact@v4
+        with:
+          name: pirate-pals-macos
+          path: release-assets
+      - name: Download Linux / Steam Deck package
+        uses: actions/download-artifact@v4
+        with:
+          name: pirate-pals-linux-steam-deck
+          path: release-assets
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          mapfile -t assets < <(find release-assets -type f \( -name '*.zip' -o -name '*.tar.gz' \) | sort)
+          if [ "${#assets[@]}" -eq 0 ]; then
+            echo "No package assets found"
+            exit 1
+          fi
+
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "${assets[@]}" --clobber
+          else
+            gh release create "$TAG_NAME" "${assets[@]}" \
+              --verify-tag \
+              --title "Pirate Pals $TAG_NAME" \
+              --notes "Automated builds from commit $GITHUB_SHA."
+          fi

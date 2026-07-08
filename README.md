@@ -41,6 +41,17 @@ The pure modules have plain-Lua tests (no LÖVE needed; any Lua 5.1+ or
     lua tests/grid_test.lua
     lua tests/timing_test.lua
 
+## Releases
+
+CI uploads package artifacts for every run. To publish durable downloads
+that do not expire with workflow artifacts, push a `v*` tag:
+
+    git tag v0.1.0
+    git push origin v0.1.0
+
+The tagged CI run creates or updates the matching GitHub Release and
+uploads the Windows, macOS, and Linux / Steam Deck builds as release assets.
+
 ## Structure
 
     main.lua                 LÖVE callbacks, virtual-canvas scaling, main loop
