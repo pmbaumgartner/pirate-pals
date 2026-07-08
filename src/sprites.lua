@@ -63,6 +63,18 @@ P_WIDE[12] = "...KADAADAADK..."
 local P_GUN = copyRows(P_BASE)
 P_GUN[9] = "...KCCCCCCCCKbbK"
 
+-- Grandma: gray bun swaps the hair rows, round pale glasses swap the eyes,
+-- and a white apron bib swaps the coat center. Same 16x16 layout as P_BASE
+-- so hats/outfits still align.
+local P_GRANDMA = copyRows(P_BASE)
+P_GRANDMA[1]  = "......LLLL......"
+P_GRANDMA[2]  = ".....LLLLLL....."
+P_GRANDMA[3]  = "....KLLLLLLK...."
+P_GRANDMA[5]  = "....KSLSSLSK...."
+P_GRANDMA[9]  = "...KCCWWWWCCK..."
+P_GRANDMA[10] = "...KSCWWWWCSK..."
+P_GRANDMA[11] = "...KCCWWWWCCK..."
+
 local P_KING = copyRows(P_WIDE)
 P_KING[1] = "................"
 P_KING[2] = "....Y.Y.Y.Y....."
@@ -201,6 +213,27 @@ local ISLAND = {
   "................",
   "................" }
 
+-- Oliver's island: same silhouette as ISLAND, but a brown perch tip pokes
+-- above the canopy and a couple of red flower flecks break up the green,
+-- so the tile reads "different" at a glance (the live parrot draws on top).
+local ISLAND_OLIVER = {
+  "........B.......",
+  "....GG.G.GG.....",
+  "...GGRGGGGRG....",
+  "....GGgbgGG.....",
+  ".......b........",
+  ".......b........",
+  ".......b........",
+  "....TTTTTTTT....",
+  "..TTTTTTTTTTTT..",
+  ".TTTTTTTTTTTTTT.",
+  ".TTTTtTTTTtTTTT.",
+  ".tTTTTTTTTTTTTt.",
+  "..ttTTTTTTTTtt..",
+  "....tttttttt....",
+  "................",
+  "................" }
+
 -- X-brace dithered to every other row (solid diagonals were near-noise at
 -- 1x), top outline broken for a lit edge, N pooled in the lower corners.
 local CRATE = {
@@ -221,6 +254,29 @@ local CRATE = {
   "................",
   "................" }
 
+-- Special-delivery crate: same crate silhouette, but a ribbon cross (one
+-- vertical band, one horizontal) replaces the X-brace so it reads "gift"
+-- among ordinary crates. Ribbon color lives in a charMap (DEFMAP has no pink).
+local GIFTBOX = {
+  "................",
+  ".KKKKBBBBBBKKKK.",
+  ".KBBBBBXXBBBBBK.",
+  ".KBBBBBXXBBBBBK.",
+  ".KBBBBBXXBBBBBK.",
+  ".KBBBBBXXBBBBBK.",
+  ".KBBBBBXXBBBBBK.",
+  ".KXXXXXXXXXXXXK.",
+  ".KBBBBBXXBBBBBK.",
+  ".KBBBBBXXBBBBBK.",
+  ".KBBBBBXXBBBBBK.",
+  ".KNBBBBXXBBBBNK.",
+  ".KNNBBBXXBBBNNK.",
+  ".KKKKKKKKKKKKKK.",
+  "................",
+  "................" }
+
+local GIFTBOX_MAP = { X = '#ff5fa8' }
+
 local PERCH = {
   "................",
   "....KKKKKKKK....",
@@ -238,6 +294,17 @@ local PERCH = {
   ".KbbbbbbbbbbbbK.",
   "..KKKKKKKKKKKK..",
   "................"
+}
+
+-- Noodle-bowl trinket (secrets shelf slot art): same 16-wide, 6-row strip
+-- as hat_shell/hat_fish so it centers the same way in the 32x32 slot.
+local SLOT_GRANDMA = {
+  "......w....w....",
+  "................",
+  "....oooooooooo..",
+  "...oTTTTTTTTTo..",
+  "...oTtTTTtTTTo..",
+  "....oooooooooo.."
 }
 
 local CHEST = {
@@ -283,6 +350,16 @@ local HATS = {
   crown = {"................","....Y..Y..Y.....","....YYYYYYY.....","....yRyGyRy.....","................","................"},
   band  = {"................",".....CCCCCC.....","....CCCCCCCC....","...........cC...","................","................"},
   patch = {"................","................","................","....KKKKKKK.....",".....KKK........","................"},
+  -- FISH HAT (fishfriend secret reward): a little orange fish worn like a
+  -- cap, its tail fin peeking out past the brim.
+  fish  = {"................","......OOOOOO....","....ooOOOOOOo...","....ooOWOOOOo.o.",".....oooooo.....","................"},
+  -- SHELL CAP (seashell secret reward): a spiral shell.
+  shell = {"................","......TT........","....TTttTT......","...TttTTttT.....","..TtTTttTTt.....","................"},
+  -- KRAKEN CAP (KRAKEN TAMER deed reward): a squid beanie with dangly
+  -- tentacles trailing past the brim.
+  kraken = {"................","....PPPPPP......","...PppppppP.....","...pPPPPPPp.....","..p.p....p.p....",".p...p....p....."},
+  -- SOU'WESTER (shop hat): classic yellow rain hat with a wide brim.
+  souwester = {"................","....YYYYYY......","...YyyyyyyY.....","..YYYYYYYYYYY...","................","................"},
 }
 
 -- Ship-battle foe telegraph icons: bomb (fire), wrench (fix), sail (move).
@@ -858,6 +935,7 @@ local ROLE_COAT = {
   strongman    = { C = '#54cf62', c = '#20803a' },
   sharpshooter = { C = '#9a63e0', c = '#6a3fae' },
   medic        = { C = '#f2f2f2', c = '#b9c2cf' },
+  grandma      = { C = '#f291c7', c = '#b3477f' },
   -- Enemies override the sash chars to their coat color so the crew-color
   -- band disappears and they render exactly as before.
   grunt        = { C = '#6a7488', c = '#454d5c', H = '#94263a', A = '#6a7488', D = '#6a7488' },
@@ -869,7 +947,7 @@ local ROLE_COAT = {
 -- Player-role body art, for baking one sash-colored variant per crew color.
 local PLAYER_BODY = {
   captain = P_BASE, deckhand = P_BASE, strongman = P_WIDE,
-  sharpshooter = P_GUN, medic = P_MEDIC,
+  sharpshooter = P_GUN, medic = P_MEDIC, grandma = P_GRANDMA,
 }
 
 local function withAccent(coat, accent)
@@ -981,6 +1059,7 @@ function M.build()
   makeSprite('shipManowar', MANOWAR_SHIP, { W = '#463d5c', B = '#5a4a63', b = '#3c3147', Y = '#8f2430', w = '#ffffff' })
   makeSprite('shipKing', SHIP_KING, { W = '#e8d4ff', R = '#ffcf40', B = '#4a2f5c', b = '#301f3c', Y = '#ffcf40', K = '#150b1f' })
   makeSprite('island', ISLAND)
+  makeSprite('island_oliver', ISLAND_OLIVER)
   makeSprite('icon_fire', ICON_FIRE)
   makeSprite('icon_fix', ICON_FIX)
   makeSprite('icon_move', ICON_MOVE)
@@ -994,6 +1073,8 @@ function M.build()
   makeSprite('mini_planks', MINI_PLANKS)
   makeSprite('kingSil', KING_SIL)
   makeSprite('crate', CRATE)
+  makeSprite('giftbox', GIFTBOX, GIFTBOX_MAP)
+  makeSprite('slot_grandma', SLOT_GRANDMA)
   makeSprite('perch', PERCH)
   makeSprite('chest', CHEST)
   makeSprite('port', PORT)
@@ -1015,6 +1096,7 @@ function M.build()
   makeSprite('pir_strongman', P_WIDE, ROLE_COAT.strongman)
   makeSprite('pir_sharpshooter', P_GUN, ROLE_COAT.sharpshooter)
   makeSprite('pir_medic', P_MEDIC, ROLE_COAT.medic)
+  makeSprite('pir_grandma', P_GRANDMA, ROLE_COAT.grandma)
   makeSprite('pir_grunt', P_BASE, ROLE_COAT.grunt)
   makeSprite('pir_gunner', P_GUN, ROLE_COAT.gunner)
   makeSprite('pir_brute', P_WIDE, ROLE_COAT.brute)
@@ -1029,7 +1111,12 @@ function M.build()
   makeSprite('hat_crown', HATS.crown)
   makeSprite('hat_bandR', HATS.band, { C = '#e84b4b', c = '#94263a' })
   makeSprite('hat_bandB', HATS.band, { C = '#4a90d9', c = '#2b5fa8' })
+  makeSprite('hat_bandG', HATS.band, { C = '#ffcf40', c = '#c9891b' })
   makeSprite('hat_patch', HATS.patch)
+  makeSprite('hat_fish', HATS.fish)
+  makeSprite('hat_shell', HATS.shell)
+  makeSprite('hat_kraken', HATS.kraken)
+  makeSprite('hat_souwester', HATS.souwester)
   for id, art in pairs(TREASURE_ART) do makeSprite('tr_' .. id, art) end
   for id, art in pairs(PERK_ART) do makeSprite('perk_' .. id, art) end
   for id, art in pairs(SALVAGE_ART) do makeSprite('sal_' .. id, art) end
@@ -1071,6 +1158,11 @@ local OUTFIT_DRAW = {
   cap   = { hat = 'hat_cap' },
   crown = { hat = 'hat_crown' },
   parrot = { side = 'parrot' },
+  souwester = { hat = 'hat_souwester' },
+  fish = { hat = 'hat_fish' },
+  shell = { hat = 'hat_shell' },
+  kraken = { hat = 'hat_kraken' },
+  goldband = { hat = 'hat_bandG' },
 }
 
 -- Ruffled King: which body art to draw for the Pirate King at his

@@ -72,6 +72,26 @@ meta.load()
 ok(type(meta.data.secrets) == 'table', 'meta.load() defaults a missing secrets field to a table')
 love.filesystem.read = origRead
 
+-- Reward unlock: fishfriend/seashell route through game.unlockHat, which
+-- writes both meta.data.hats and the live run.owned table.
+meta.newMeta()
+game.run = { owned = {} }
+ok(not meta.data.hats.fish, 'fresh meta owns no FISH HAT yet')
+game.foundSecret('fishfriend')
+ok(meta.data.hats.fish == true, 'fishfriend reward unlocks FISH HAT in meta.data.hats')
+ok(game.run.owned.fish == true, 'fishfriend reward unlocks FISH HAT in the live run')
+game.foundSecret('seashell')
+ok(meta.data.hats.shell == true, 'seashell reward unlocks SHELL CAP')
+
+-- Retro-grant: an older save that already found fishfriend before this
+-- reward existed should backfill FISH HAT on load.
+local savedOldFind = { version = 1, secrets = { fishfriend = true }, hats = {} }
+love.filesystem.read = function() return serialize.encode(savedOldFind) end
+meta.load()
+ok(meta.data.hats.fish == true,
+  'meta.load() retro-grants FISH HAT for an already-found fishfriend secret')
+love.filesystem.read = origRead
+
 if fails > 0 then
   print(fails .. ' FAILURES')
   os.exit(1)

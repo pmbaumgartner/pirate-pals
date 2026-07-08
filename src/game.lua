@@ -25,6 +25,9 @@ M.T_WATER, M.T_ISLE, M.T_CHEST, M.T_PORT, M.T_EXIT = 0, 1, 2, 3, 4
 -- Event tiles: message-in-a-bottle, friendly trader, and the
 -- treasure-map X a bottle marks on a later sea.
 M.T_BOTTLE, M.T_TRADER, M.T_X = 5, 6, 7
+-- Oliver's island (Grandma questline): a one-off odd-looking island where
+-- the parrot asks for help; passable and consumed on arrival like T_TRADER.
+M.T_OLIVER = 8
 
 M.run = nil
 
@@ -93,11 +96,119 @@ function M.foundSecret(id)
   audio.sfx.fanfare()
   engine.showBanner('SECRET FOUND!', CO.gold)
   engine.addFloat(160, 100, secret and secret.name or id, CO.gold, 2)
+  if secret and secret.reward then M.unlockHat(secret.reward) end
 end
 
 function M.distinctSecrets()
   local n = 0
   for _, v in pairs(meta.data.secrets) do
+    if v then n = n + 1 end
+  end
+  return n
+end
+
+-- DEEDS: a visible, always-readable checklist (see data.DEEDS). earnDeed is
+-- the one writer of meta.data.deeds; deedTick/deedFlag are the two counter
+-- shapes built on top of it, mirroring foundSecret's no-op-once-earned rule.
+function M.earnDeed(id)
+  if meta.data.deeds[id] then return end
+  meta.data.deeds[id] = true
+  meta.save()
+  local deed = data.deedById(id)
+  audio.sfx.fanfare()
+  engine.showBanner('DEED DONE!', CO.gold)
+  engine.addFloat(160, 100, deed and deed.name or id, CO.gold, 2)
+  if deed and deed.reward then M.unlockHat(deed.reward) end
+  M.checkAllDeeds()
+end
+
+-- The 100% prize: GOLD BANDANA once every deed in data.DEEDS is earned.
+-- Guarded like every unlock check -- unlockHat may itself earn 'hatrack',
+-- which loops back through earnDeed and this check, but meta.data.hats[id]
+-- is already set by then so it no-ops.
+function M.checkAllDeeds()
+  if meta.data.hats[data.ALL_DEEDS_REWARD] then return end
+  if M.distinctDeeds() >= #data.DEEDS then
+    M.unlockHat(data.ALL_DEEDS_REWARD)
+  end
+end
+
+-- Counter deeds: bumps meta.data.counts[key] by `amount` (default 1) and
+-- earns once it reaches goal.
+function M.deedTick(key, goal, id, amount)
+  if meta.data.deeds[id] then return end
+  meta.data.counts[key] = (meta.data.counts[key] or 0) + (amount or 1)
+  if meta.data.counts[key] >= goal then M.earnDeed(id) else meta.save() end
+end
+
+-- Collection deeds: marks one per-item flag, then earns once every flag in
+-- allKeys is set.
+function M.deedFlag(flagKey, allKeys, id)
+  if meta.data.deeds[id] then return end
+  if meta.data.counts[flagKey] then return end
+  meta.data.counts[flagKey] = 1
+  meta.save()
+  for _, k in ipairs(allKeys) do
+    if not meta.data.counts[k] then return end
+  end
+  M.earnDeed(id)
+end
+
+-- HAT RACK scopes to the 9 base data.OUTFITS as shipped today (see
+-- checkKingSniff-style deadlock note in the plan): deed/secret-reward hats
+-- never count, so completing every deed can't be blocked on itself.
+local HAT_RACK_IDS = { 'none', 'bandR', 'patch', 'straw', 'tri', 'parrot', 'bandB', 'cap', 'crown' }
+
+function M.checkHatRack()
+  if meta.data.deeds.hatrack then return end
+  for _, id in ipairs(HAT_RACK_IDS) do
+    if not meta.data.hats[id] then return end
+  end
+  M.earnDeed('hatrack')
+end
+
+function M.checkShipshape()
+  if meta.data.deeds.shipshape then return end
+  for key, def in pairs(meta.UPGRADES) do
+    if (meta.data.upgrades[key] or 0) < def.max then return end
+  end
+  M.earnDeed('shipshape')
+end
+
+-- Progress reader for the log.lua caption: (current, goal), or (nil, nil)
+-- for the plain "firsts" that show no numbers.
+function M.deedProgress(d)
+  if d.id == 'hatrack' then
+    local n = 0
+    for _, hid in ipairs(HAT_RACK_IDS) do
+      if meta.data.hats[hid] then n = n + 1 end
+    end
+    return n, #HAT_RACK_IDS
+  end
+  if d.id == 'shipshape' then
+    local n, total = 0, 0
+    for key, def in pairs(meta.UPGRADES) do
+      total = total + 1
+      if (meta.data.upgrades[key] or 0) >= def.max then n = n + 1 end
+    end
+    return n, total
+  end
+  if d.key and d.goal then
+    return math.min(d.goal, meta.data.counts[d.key] or 0), d.goal
+  end
+  if d.flagKeys then
+    local n = 0
+    for _, k in ipairs(d.flagKeys) do
+      if meta.data.counts[k] then n = n + 1 end
+    end
+    return n, d.goal
+  end
+  return nil, nil
+end
+
+function M.distinctDeeds()
+  local n = 0
+  for _, v in pairs(meta.data.deeds) do
     if v then n = n + 1 end
   end
   return n
@@ -272,6 +383,17 @@ local function placeSpecials(t, spawn, lv, boss, placed)
       specials[#specials + 1] = q
     end
   end
+  -- Oliver waits on sea 3; sea 4 is the second chance if sea 3's gen was
+  -- crowded or the player sailed past him. After that the run has no quest.
+  if not boss and (lv == 3 or lv == 4)
+    and M.run.voyage and M.run.voyage.length > 5
+    and not M.run.grandmaQuest and not M.run.grandmaRescued then
+    local o = freeTile(t, spawn, 4, placed)
+    if o then
+      t[o.y][o.x] = M.T_OLIVER
+      specials[#specials + 1] = o
+    end
+  end
   local last = (M.run.voyage and M.run.voyage.length or 8) - 1
   if not boss and lv >= 2 and (lv == last or util.chance(0.6)) then
     local ev = freeTile(t, spawn, 3, placed)
@@ -403,6 +525,7 @@ function M.genSea(lv, biome)
   ageCrewNaps()
   local boss = M.run.voyage and lv >= M.run.voyage.length
   biome = resolveSeaBiome(lv, boss, biome)
+  M.deedFlag('biome_' .. biome, { 'biome_calm', 'biome_icy', 'biome_foggy', 'biome_volcano' }, 'seenseas')
   for _ = 1, 40 do
     local t = {}
     for y = 0, M.SEA_H - 1 do
@@ -438,9 +561,19 @@ function M.genSea(lv, biome)
     local enemies = placeEnemies(t, spawn, lv, boss, placed, biome)
 
     if seaReachable(t, spawn, exit, port, chests, specials, enemies, boss) then
+      -- Grandma's box rides one random ship per sea from 5 on until rescued,
+      -- so skipping the marked battle only delays the rescue, never loses it.
+      if not boss and lv >= 5 and M.run.grandmaQuest and not M.run.grandmaRescued
+        and #enemies > 0 then
+        enemies[util.irand(1, #enemies)].grandmaBox = true
+      end
       M.run.sea = {
         lv = lv, t = t, enemies = enemies, exit = exit, port = port, cleared = false, boss = boss,
         biome = biome, slick = buildSlick(t, spawn, biome), rocks = {}, rockT = 2.5, shipHurt = 0,
+        -- Hidden delight (for the 'hotfoot' secret): rock hits/landings this
+        -- sea, dedicated counters since shipHurt gets consumed and zeroed by
+        -- the next ship battle (ship_battle.lua).
+        rockBonks = 0, rocksLanded = 0,
         -- Hidden delight (for the 'luckycoin' secret): every chest this sea
         -- opened without a battle in between. chestOpened/chestBroken reset
         -- fresh with every new sea, same as the rest of run.sea.
@@ -461,6 +594,7 @@ end
 function M.unlockHat(id)
   M.run.owned[id] = true
   meta.data.hats[id] = true
+  M.checkHatRack()
 end
 
 -- TWO CAPTAINS is the only co-op mode: a second player is active exactly
@@ -519,9 +653,14 @@ end
 -- voyage — same names/roles, back to level 1 (attachment carries, power
 -- doesn't) — and carries their Best Mates bonds forward.
 function M.newGamePlus()
+  M.earnDeed('newvoyage')
   local prevCrew = {}
   for _, p in ipairs(M.run.crew) do
-    prevCrew[#prevCrew + 1] = { role = p.role, name = p.name }
+    -- Grandma is a per-run rescue, not a carryover pal; each voyage
+    -- re-tells her story from Oliver's island.
+    if p.role ~= 'grandma' then
+      prevCrew[#prevCrew + 1] = { role = p.role, name = p.name }
+    end
   end
   local prevBonds = M.run.bondsMade
   meta.data.tier = meta.data.tier + 1

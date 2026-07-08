@@ -29,6 +29,7 @@ for _, name in ipairs({
   'boarding_real',
   'boarding_specials',
   'sail_triggers',
+  'grandma_quest',
   'save_roundtrip',
   'colorselect_launch',
 }) do

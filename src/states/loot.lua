@@ -104,6 +104,7 @@ engine.states.loot = {
         if wasFirst then
           game.logMoment('flagW', 'SEA ' .. run.voyage.sea .. ': ' .. part.pirate.name .. ' JOINED THE CREW!',
             { part.pirate.name }, true)
+          game.earnDeed('firstpal')
         end
         if #run.party < game.partyCap() then
           run.party[#run.party + 1] = part.pirate
@@ -305,6 +306,11 @@ engine.states.loot = {
       font.drawText("CANNON FIRE BOUNCES OFF. BUT HER RIGGING IS", VW / 2, by + 36, CO.white, 1, 'center')
       font.drawText("OLD, AND HER POWDER STORE IS DRY WOOD...", VW / 2, by + 46, CO.white, 1, 'center')
       font.drawText("CHAIN STRIPS HER DODGE. FIRE TEARS HER APART!", VW / 2, by + 58, CO.green, 1, 'center')
+    elseif part.type == 'oliver' then
+      sprites.draw('parrot', VW / 2 - 8, by + 4, false, 2)
+      font.drawText('SQUAWK! PIRATES TOOK MY GRANDMA!', VW / 2, by + 26, CO.gold, 1, 'center')
+      font.drawText('THEY NAILED HER UP IN A WOODEN BOX', VW / 2, by + 38, CO.white, 1, 'center')
+      font.drawText('ON A SHIP IN THE FAR SEAS. HELP HER!', VW / 2, by + 48, CO.white, 1, 'center')
     end
 
     for i = 0, #loot.parts - 1 do

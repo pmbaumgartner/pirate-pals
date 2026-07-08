@@ -61,6 +61,9 @@ return function(ctx, h)
     'clearing the only foe did not mark the sea cleared')
   expect(run.bondsMade[game.bondKey(cappy.name, fin.name)],
     'adjacent win did not cross the bond threshold')
+  expect(h.meta.data.deeds.firstbond, 'the voyage-first Best Mates bond did not earn the firstbond deed')
+  expect(h.meta.data.counts.deckWins and h.meta.data.counts.deckWins >= 1,
+    'a boarding win did not tick the deckWins counter')
 
   -- A2: win at sea 5 with chain+grape already known -> the blueprint_single
   -- auto-award branch, plus the plain 'good' damage branch.
@@ -256,6 +259,10 @@ return function(ctx, h)
   run.voyage.sea = 8
   game.genSea(8)
   run.party = { run.crew[1], run.crew[2] }
+  -- Kraken flag (for the 'krakentamer' deed): genSea only sets it on the
+  -- Golden Compass rematch at sea 9, so poke it directly onto this King
+  -- instead of scaffolding a full 12/12 treasure-log run to reach one.
+  run.sea.enemies[1].kraken = true
   personBattle.startBoss(run.sea.enemies[1])
   expect(engine.cur == 'personBattle', 'scripted boss boarding did not start')
   wait(0.3)
@@ -308,6 +315,7 @@ return function(ctx, h)
     end
   end
   expect(pb6.over, "attacking through all of the King's bars did not end the battle")
+  expect(h.meta.data.deeds.krakentamer, 'defeating a kraken-flagged King did not earn the krakentamer deed')
   shot('king-defeated')
 
   -- Victory -> Home Port. boss_victory_port.lua already exercises the meta

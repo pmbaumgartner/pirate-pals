@@ -19,6 +19,14 @@ return function(ctx, h)
   waitUntil(function() return sb1.over end, 10)
   waitUntil(function() return engine.cur == 'personBattle' end, 10)
   expect(not personBattle.pb.isBoss, 'a plain ship win should hand off to a non-boss boarding')
+  -- Deed/secret hooks fired by this one win: SHIPWRECKER's counter, a
+  -- FLEET SPOTTER flag for the sloop class, and (with the chain/grape/fire
+  -- flags ship_battle.lua already set) the last shot_ flag FULL POWDER needs.
+  expect(meta.data.counts.shipsSunk and meta.data.counts.shipsSunk >= 1,
+    'a ship-battle win did not tick the shipsSunk counter')
+  expect(meta.data.counts.fleet_sloop, 'sinking a sloop did not set the fleet_sloop flag')
+  expect(meta.data.counts.shot_round, 'firing a round shot did not set the shot_round flag')
+  expect(meta.data.deeds.fullpowder, 'firing every shot type did not earn the fullpowder deed')
   shot('ship-win-board')
   engine.setState('sail')
   h.settle()
@@ -163,6 +171,8 @@ return function(ctx, h)
     sb6b.ships[1].hp = sb6b.ships[1].max -- the foe's counter-fire shouldn't end the streak early
   end
   expect(sb6b.perfectFireCount >= 3 and sb6b.cannonballFx, 'three perfect fires did not flip on cannonballFx')
+  expect(meta.data.counts.perfectHits and meta.data.counts.perfectHits >= 1,
+    'perfect fire hits did not tick the perfectHits counter')
   expect(meta.data.secrets.cannonball, 'the cannonball secret was not recorded')
   shot('ship-cannonball-streak')
 

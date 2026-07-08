@@ -184,6 +184,41 @@ S.pb.perch = { 2, 2 }
 ok(model.attackRange(shooter) == 4, 'perch adds +1 range to ranged units')
 ok(model.canAttack(shooter, farFoe), 'canAttack uses perch-boosted range')
 
+-- nestking: a pal holding the perch at the end of 3 consecutive player
+-- turns earns it; startFoePhase is the round boundary where that's checked.
+local meta = require 'src.meta'
+meta.newMeta()
+local perchPal = mkUnit({ side = 'p', x = 2, y = 2 })
+local dummyFoe = mkUnit({ side = 'e', x = 6, y = 6, hp = 10, max = 10 })
+S.pb = {
+  units = { perchPal, dummyFoe }, crates = {}, hazards = {}, flags = {}, defeated = {},
+  perch = { 2, 2 }, over = false, phase = 'party', queue = {}, wait = 0, next = nil, lv = 1,
+  pl = { p1 = { sel = nil, cursor = { x = 0, y = 0 } }, p2 = { sel = nil, cursor = { x = 0, y = 0 } } },
+  ox = 0, oy = 0,
+}
+for i = 1, 2 do
+  ai.startFoePhase()
+  ok(meta.data.secrets.nestking == nil, 'holding the perch for only ' .. i .. ' turn(s) does not yet earn nestking')
+end
+ai.startFoePhase()
+ok(meta.data.secrets.nestking == true, 'holding the perch through 3 consecutive player turns earns nestking')
+
+meta.newMeta()
+perchPal = mkUnit({ side = 'p', x = 2, y = 2 })
+local wanderer = mkUnit({ side = 'p', x = 0, y = 0 })
+dummyFoe = mkUnit({ side = 'e', x = 6, y = 6, hp = 10, max = 10 })
+S.pb = {
+  units = { perchPal, wanderer, dummyFoe }, crates = {}, hazards = {}, flags = {}, defeated = {},
+  perch = { 2, 2 }, over = false, phase = 'party', queue = {}, wait = 0, next = nil, lv = 1,
+  pl = { p1 = { sel = nil, cursor = { x = 0, y = 0 } }, p2 = { sel = nil, cursor = { x = 0, y = 0 } } },
+  ox = 0, oy = 0,
+}
+ai.startFoePhase() -- streak = 1
+perchPal.x, perchPal.y = 0, 1 -- steps off the perch: streak resets
+ai.startFoePhase() -- streak = 0
+ai.startFoePhase() -- streak = 1, still short of 3
+ok(meta.data.secrets.nestking == nil, 'stepping off the perch resets the streak instead of accumulating')
+
 -- Test crate smash
 local crateAttacker = mkUnit({ side = 'p', x = 1, y = 1 })
 S.pb.crates[grid.gk(2, 1)] = true

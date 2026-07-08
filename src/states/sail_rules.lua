@@ -63,13 +63,13 @@ end
 function M.checkKingSniff()
   local run = game.run
   if not (run.sea and run.sea.boss) then return end
-  local counts = {}
+  if #run.party < 3 then return end
+  local first = run.party[1].out
+  if first ~= 'bandR' and first ~= 'bandB' then return end
   for _, p in ipairs(run.party) do
-    counts[p.out] = (counts[p.out] or 0) + 1
+    if p.out ~= first then return end
   end
-  if (counts.bandR or 0) >= 4 or (counts.bandB or 0) >= 4 then
-    game.foundSecret('kingsniff')
-  end
+  game.foundSecret('kingsniff')
 end
 
 -- Hidden delight (for the 'seashell' secret): the only dig-anywhere verb --
@@ -90,6 +90,7 @@ function M.tryDig()
     SFX.bump()
     return
   end
+  game.deedTick('digs', 20, 'digdog')
   if util.chance(0.1) then
     game.foundSecret('seashell')
     engine.addParts(cx, cy, 10, CO.foam, 40)
@@ -102,6 +103,7 @@ end
 local function openChest(x, y)
   game.setTile(x, y, game.T_WATER)
   SFX.coin()
+  game.deedTick('chestsOpened', 30, 'chestchaser')
   local run = game.run
   local sea = run.sea
   local lv = sea.lv
@@ -128,23 +130,29 @@ local function openChest(x, y)
   loot.start(partsList, 'A CHEST!')
 end
 
+-- Shared by foundBottle and the port arrival: on the final sea, the first
+-- visit hands over the gossip (and the 'fire' blueprint, once).
+local function tryGossip(run, nextState)
+  local last = (run.voyage and run.voyage.length or 8) - 1
+  if run.sea.lv ~= last or run.gossipShown then return false end
+  run.gossipShown = true
+  local parts = { { type = 'gossip' } }
+  if not run.blueprints['fire'] then
+    parts[#parts + 1] = { type = 'blueprint_single', id = 'fire' }
+    run.blueprints['fire'] = true
+  end
+  loot.start(parts, 'GOSSIP!', nextState)
+  return true
+end
+
 -- Sea events. A bottle marks an X on a later sea; the X digs up a
 -- guaranteed tier-2 treasure; the trader offers one fair 2-way swap (or a
 -- plain gift when the player can afford neither side).
 local function foundBottle(x, y)
   game.setTile(x, y, game.T_WATER)
   local run = game.run
+  if tryGossip(run, 'sail') then return end
   local last = (run.voyage and run.voyage.length or 8) - 1
-  if run.sea.lv == last and not run.gossipShown then
-    run.gossipShown = true
-    local parts = { { type = 'gossip' } }
-    if not run.blueprints['fire'] then
-      parts[#parts + 1] = { type = 'blueprint_single', id = 'fire' }
-      run.blueprints['fire'] = true
-    end
-    loot.start(parts, 'GOSSIP!', 'sail')
-    return
-  end
   local target = math.min(last, run.sea.lv + util.irand(1, 2))
   run.quest = { sea = target }
   SFX.fanfare()
@@ -153,6 +161,7 @@ end
 
 local function digQuest(x, y)
   game.setTile(x, y, game.T_WATER)
+  game.earnDeed('xmarks')
   local run = game.run
   run.quest = nil
   local pool = {}
@@ -181,6 +190,9 @@ local function meetTrader(x, y)
   SFX.sel()
   if not buyOk and not sellId then
     run.gold = run.gold + 10
+    -- Hidden delight (for the 'kindtrader' secret): the free-gift path only
+    -- exists when the player is broke and has nothing spare to trade.
+    game.foundSecret('kindtrader')
     loot.start({ { type = 'gold', n = 10 } }, 'A KIND TRADER!')
     return
   end
@@ -193,7 +205,30 @@ local function meetTrader(x, y)
   } }, 'A FRIENDLY TRADER!')
 end
 
+-- Oliver's island (Grandma questline): the parrot begs for help and the
+-- quest flag goes up before the card shows, so the beat is one-time even if
+-- the game dies mid-card. The box itself is seeded by genSea from sea 5 on.
+local function meetOliver(x, y)
+  game.setTile(x, y, game.T_WATER)
+  local run = game.run
+  run.grandmaQuest = true
+  SFX.fanfare()
+  game.logMoment('oliver', 'SEA ' .. run.sea.lv .. ': OLIVER ASKED FOR HELP!', {})
+  loot.start({ { type = 'oliver' } }, 'A LONELY PARROT!')
+end
+
+-- Hidden delight (for the 'hotfoot' secret): crossed a volcano sea with
+-- rocks landing (guaranteed on any normal crossing) but never a hit. Exposed
+-- (rather than folded into the local nextSea below) so it's testable without
+-- driving the chart/engine sea-advance machinery.
+function M.checkHotfoot(sea)
+  if sea.biome == 'volcano' and (sea.rocksLanded or 0) >= 5 and (sea.rockBonks or 0) == 0 then
+    game.foundSecret('hotfoot')
+  end
+end
+
 local function nextSea()
+  M.checkHotfoot(game.run.sea)
   game.run.hints.sea2 = true
   chart.startAdvance()
 end
@@ -228,8 +263,10 @@ function M.updateRocks(dt)
       local cx, cy = hexCenter(rk.x, rk.y)
       engine.shakeIt(2, 0.2)
       engine.addParts(cx, cy, 12, CO.orange, 50)
+      sea.rocksLanded = (sea.rocksLanded or 0) + 1
       if sh.x == rk.x and sh.y == rk.y then
         sea.shipHurt = math.min(9, sea.shipHurt + 3)
+        sea.rockBonks = (sea.rockBonks or 0) + 1
         SFX.hit()
         engine.addFloat(cx, cy - 12, 'BONK! SHIP -3', CO.red, 2)
       else
@@ -338,6 +375,15 @@ local function tryMove(sh, tx, ty, shipKey)
   if not inSea(tx, ty) or game.tileAt(tx, ty) == game.T_ISLE then
     SFX.bump()
     engine.shakeIt(1, 0.1)
+    -- Hidden delight (for the 'sorryisland' secret): 5 bumps in a row from
+    -- the same hex (any successful move resets the streak below).
+    sh.bumpStreak = (sh.bumpStreak or 0) + 1
+    if sh.bumpStreak >= 5 then
+      sh.bumpStreak = 0
+      game.foundSecret('sorryisland')
+      local cx, cy = hexCenter(sh.x, sh.y)
+      engine.addFloat(cx, cy - 12, 'THE ISLAND FORGIVES YE!', CO.foam, 1)
+    end
     return 'bump'
   end
   local foe = game.enemyAt(tx, ty)
@@ -346,8 +392,11 @@ local function tryMove(sh, tx, ty, shipKey)
     M.startEncounter(foe, shipKey)
     return 'battle'
   end
-  -- Remember the hop's hex direction so an icy slide can continue it.
+  sh.bumpStreak = 0
+  -- Remember the hop's hex direction so an icy slide can continue it, and
+  -- reset the continuation count: this is a fresh hop, not a slide chain.
   sh.slideDir = grid.hexDirIndex(sh.x, sh.y, tx, ty)
+  sh.slideChain = 0
   sh.anim = { x0 = sh.x, y0 = sh.y, t = 0 }
   sh.x, sh.y = tx, ty
   SFX.move()
@@ -404,18 +453,7 @@ local function handleArrival(sh, shipKey)
   if tl ~= game.T_WATER then sh.route = nil end
   if tl == game.T_CHEST then openChest(sh.x, sh.y); return true end
   if tl == game.T_PORT then
-    local lv = game.run.sea.lv
-    local last = (game.run.voyage and game.run.voyage.length or 8) - 1
-    if lv == last and not game.run.gossipShown then
-      game.run.gossipShown = true
-      local parts = { { type = 'gossip' } }
-      if not game.run.blueprints['fire'] then
-        parts[#parts + 1] = { type = 'blueprint_single', id = 'fire' }
-        game.run.blueprints['fire'] = true
-      end
-      loot.start(parts, 'GOSSIP!', 'dock')
-      return true
-    end
+    if tryGossip(game.run, 'dock') then return true end
     engine.setState('dock')
     return true
   end
@@ -423,6 +461,7 @@ local function handleArrival(sh, shipKey)
   if tl == game.T_BOTTLE then foundBottle(sh.x, sh.y); return true end
   if tl == game.T_TRADER then meetTrader(sh.x, sh.y); return true end
   if tl == game.T_X then digQuest(sh.x, sh.y); return true end
+  if tl == game.T_OLIVER then meetOliver(sh.x, sh.y); return true end
   return false
 end
 
@@ -453,6 +492,13 @@ function M.tickShip(sh, ctx, shipKey, dt)
           sh.x, sh.y = nx, ny
           SFX.move()
           slid = true
+          -- Hidden delight (for the 'wheee' secret): two continuations
+          -- chained onto one hop is a 3-hex slide.
+          sh.slideChain = (sh.slideChain or 0) + 1
+          if sh.slideChain == 2 then
+            game.foundSecret('wheee')
+            engine.addFloat(cx, cy - 10, 'WHEEEEE!', CO.foam, 2)
+          end
         end
       end
       if not slid and handleArrival(sh, shipKey) then return 'stop' end
@@ -561,6 +607,28 @@ function M.updateAnchor(dt)
     other.anim = { x0 = other.x, y0 = other.y, t = 0 }
     other.x, other.y = bestNb[1], bestNb[2]
     SFX.move()
+  end
+end
+
+-- Hidden delight (for the 'raftup' secret, TWO CAPTAINS only): both ships
+-- parked on the same hex a couple seconds straight. Ships never block each
+-- other (see startEncounter/tryMove), so this is purely a delight, no rule.
+function M.updateRaftUp(dt, run)
+  local sh, sh2 = run.ship, run.ship2
+  if sh.anim or sh2.anim or sh.route or sh2.route then
+    run.sea.raftT = 0
+    return
+  end
+  if sh.x == sh2.x and sh.y == sh2.y then
+    run.sea.raftT = (run.sea.raftT or 0) + dt
+    if run.sea.raftT >= 2 and not run.sea.raftFound then
+      run.sea.raftFound = true
+      game.foundSecret('raftup')
+      local cx, cy = hexCenter(sh.x, sh.y)
+      engine.addFloat(cx, cy - 14, 'RAFT-UP!', CO.foam, 1)
+    end
+  else
+    run.sea.raftT = 0
   end
 end
 

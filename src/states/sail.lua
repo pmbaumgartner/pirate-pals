@@ -118,6 +118,7 @@ engine.states.sail = {
       rules.updateConvoy(dt)
       if rules.tickShip(run.ship2, input.p2, 'ship2', dt) == 'stop' then return end
       rules.updateAnchor(dt)
+      rules.updateRaftUp(dt, run)
     end
     rules.updateRocks(dt)
 
@@ -180,7 +181,11 @@ engine.states.sail = {
         elseif t == game.T_EXIT then drawWhirl(px, py, gt, CO, util)
         elseif t == game.T_BOTTLE then sprites.draw('bottleT', px, py + util.round(math.sin(gt * 2.5 + x)))
         elseif t == game.T_TRADER then sprites.draw('trader', px, py + util.round(math.sin(gt * 2 + x)))
-        elseif t == game.T_X then sprites.draw('xmark', px, py) end
+        elseif t == game.T_X then sprites.draw('xmark', px, py)
+        elseif t == game.T_OLIVER then
+          sprites.draw('island_oliver', px, py)
+          sprites.draw('parrot', px + 4, py - 5 + util.round(math.sin(gt * 3 + x)))
+        end
       end
     end
 
@@ -325,6 +330,10 @@ engine.states.sail = {
     elseif run.quest then hint = 'X MARKS SEA ' .. run.quest.sea .. '!'
     elseif run.sea.biome and run.sea.biome ~= 'calm' then
       hint = data.BIOMES[run.sea.biome].twist
+    elseif run.grandmaQuest and not run.grandmaRescued and run.sea.lv >= 5 then
+      hint = 'A BOX RATTLES ON A SPOOKY SHIP!'
+    elseif run.grandmaQuest and not run.grandmaRescued then
+      hint = 'A BOX RATTLES ON A FAR SEA...'
     end
     font.drawText(hint, VW / 2, SEA_TOP + SEA_BAND + 5, CO.paper, 1, 'center')
   end,

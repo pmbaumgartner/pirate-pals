@@ -144,6 +144,8 @@ local function useSpecial(player, u)
     pl.action, pl.targets, pl.tIdx, pl.stage = 'longshot', model.targetsOf(u, 99), 0, 'target'
   elseif r == 'deckhand' then
     pl.action, pl.targets, pl.tIdx, pl.stage = 'shove', model.targetsOf(u, 1), 0, 'target'
+  elseif r == 'grandma' then
+    pl.action, pl.targets, pl.tIdx, pl.stage = 'whip', model.whipTargets(u), 0, 'target'
   end
 end
 
@@ -173,6 +175,26 @@ local function confirmTarget(player)
     timing.start(timing.cfg(pb.lv, false, meta.steadyMult()), 'AIM... PRESS Z!', function(res)
       SFX.shot()
       model.damage(u, tgt, u.atk + u.buff + 1, res, { ignoreCover = true })
+      finishUnit(player, u)
+    end, 'good', model.ownerPlayer(u))
+  elseif pl.action == 'whip' then
+    local ux, uy = model.px(u.x, u.y)
+    barks.say(u, ux - 8, uy, 'special')
+    pl.stage = 'busy'
+    timing.start(timing.cfg(pb.lv, false, meta.steadyMult()), 'WHIP! PRESS Z!', function(res)
+      engine.shakeIt(2, 0.2)
+      -- Lash sweeps from Grandma toward the picked foe, hitting every
+      -- enemy (and crunching every crate) on the first three tiles.
+      local sx = (tgt.x > u.x and 1) or (tgt.x < u.x and -1) or 0
+      local sy = (tgt.y > u.y and 1) or (tgt.y < u.y and -1) or 0
+      for i = 1, 3 do
+        local tx, ty = u.x + i * sx, u.y + i * sy
+        local o = model.unitAt(tx, ty)
+        if o and o.alive and o.side ~= u.side then
+          model.damage(u, o, u.atk + u.buff + 1, res, {})
+        end
+        model.smashCrate(u, tx, ty)
+      end
       finishUnit(player, u)
     end, 'good', model.ownerPlayer(u))
   elseif pl.action == 'shove' then
@@ -368,12 +390,9 @@ function M.debugWin()
   model.checkEnd()
 end
 
--- compOverride (dev warps/smoke) skips the level/biome roll for a fixed
--- enemy lineup. deckOverride (dev warps) skips the weighted shape draw for a
--- fixed src.data.DECKS id.
-function M.start(foe, compOverride, deckOverride)
-  local lv = foe.lv
-  local deckInfo = model.buildDeck(deckOverride or model.pickDeckId(lv), game.run.sea and game.run.sea.biome)
+-- Party-unit build loop shared by M.start/M.startBoss: same stat/spawn
+-- mapping from game.run.party for both, capped at game.partyCap().
+local function buildPartyUnits(deckInfo)
   local units = {}
   local partyCap = game.partyCap()
   local pSpawns = deckInfo.pSpawns
@@ -389,6 +408,20 @@ function M.start(foe, compOverride, deckOverride)
       acted = false, guard = false, buff = 0, alive = true, specUsed = false,
     }
   end
+  return units
+end
+
+-- compOverride (dev warps/smoke) skips the level/biome roll for a fixed
+-- enemy lineup. deckOverride (dev warps) skips the weighted shape draw for a
+-- fixed src.data.DECKS id.
+function M.start(foe, compOverride, deckOverride)
+  local lv = foe.lv
+  local deckInfo = model.buildDeck(deckOverride or model.pickDeckId(lv), game.run.sea and game.run.sea.biome)
+  game.deedFlag('deck_' .. deckInfo.id, {
+    'deck_classic', 'deck_gangplank', 'deck_lshape', 'deck_twinDecks',
+    'deck_crowsnest', 'deck_bigDeck', 'deck_barricade', 'deck_tidepool',
+  }, 'deckexplorer')
+  local units = buildPartyUnits(deckInfo)
   local comp = compOverride or game.compFor(lv, game.run.sea and game.run.sea.biome)
   local compCopy = {}
   for _, r in ipairs(comp) do compCopy[#compCopy + 1] = r end
@@ -430,16 +463,35 @@ function M.start(foe, compOverride, deckOverride)
   end
   for i, u in ipairs(units) do u.id = i end
   local crates = model.scatterCrates(deckInfo)
+  local grandmaK = nil
+  if foe.grandmaBox then
+    grandmaK = model.placeGrandmaBox(deckInfo, crates)
+  end
   -- Story hook: the first-ever battle on a
   -- non-classic shape gets its own Voyage Log line.
   if deckInfo.logText and not game.run.seenDecks[deckInfo.id] then
     game.run.seenDecks[deckInfo.id] = true
     game.logMoment('flagW', 'SEA ' .. lv .. ': ' .. deckInfo.logText, {})
   end
+  -- Hidden delight (for the 'birdsquad' secret): a pal wearing PARROT PAL
+  -- boards a ship whose crew includes the thief parrot.
+  local parrotPal, thiefUnit = nil, nil
+  for _, u in ipairs(units) do
+    if u.side == 'p' and u.out == 'parrot' and not parrotPal then parrotPal = u end
+    if u.side == 'e' and u.role == 'thief' and not thiefUnit then thiefUnit = u end
+  end
   newPb(units, crates, lv, foe, false, deckInfo)
+  S.pb.grandmaBoxK = grandmaK
   engine.setState('personBattle')
   battleStartBarks(units)
   engine.showBanner('DEFEAT THE CREW!', CO.gold, 1.2)
+  if parrotPal and thiefUnit then
+    game.foundSecret('birdsquad')
+    local px1, py1 = model.px(parrotPal.x, parrotPal.y)
+    local px2, py2 = model.px(thiefUnit.x, thiefUnit.y)
+    engine.addFloat(px1 + 8, py1 - 12, 'SQUAWK!', CO.gold, 1)
+    engine.addFloat(px2 + 8, py2 - 12, 'SQUAWK!', CO.gold, 1)
+  end
 end
 
 -- The Pirate King: a chained 3-bar boss unit plus two minion grunts. Losing
@@ -447,24 +499,10 @@ end
 -- rage persists between attempts.
 function M.startBoss(foe)
   local lv = foe.lv
-  local units = {}
   -- The boss deck stays a fixed shape: SLAM tile
   -- choreography and minion placement keep their tuned classic-box feel.
   local deckInfo = model.buildDeck('classic')
-  local partyCap = game.partyCap()
-  local pSpawns = deckInfo.pSpawns
-  for i, pr in ipairs(game.run.party) do
-    if i > partyCap then break end
-    local sp = pSpawns[(i - 1) % #pSpawns + 1]
-    local st = game.statsOf(pr)
-    units[#units + 1] = {
-      side = 'p', role = pr.role, name = pr.name, lvl = pr.lvl, out = pr.out, ref = pr,
-      owner = game.ownerOf(pr), color = game.palColor(pr),
-      x = sp[1], y = sp[2], fx = sp[1], fy = sp[2],
-      hp = st.hp, max = st.hp, atk = st.atk, move = st.move, range = st.range,
-      acted = false, guard = false, buff = 0, alive = true, specUsed = false,
-    }
-  end
+  local units = buildPartyUnits(deckInfo)
   -- Golden Compass rematch: sea 9's kraken reuses the King's fight
   -- with a stat bump, no new art required yet — the treasure-log payoff is
   -- "tougher, named differently", not a whole new boss kit.
@@ -495,23 +533,17 @@ function M.startBoss(foe)
   end
   -- Apply Grape Shot deck sweep effect:
   if foe.gunsStage and foe.gunsStage < 0 then
-    local targetUnit
+    local targetUnit, firstEnemy
     for _, u in ipairs(units) do
       if u.side == 'e' then
+        firstEnemy = firstEnemy or u
         if not u.boss then
           targetUnit = u
           break
         end
       end
     end
-    if not targetUnit then
-      for _, u in ipairs(units) do
-        if u.side == 'e' then
-          targetUnit = u
-          break
-        end
-      end
-    end
+    targetUnit = targetUnit or firstEnemy
     if targetUnit then
       targetUnit.hp = math.max(1, math.floor(targetUnit.max / 2))
     end

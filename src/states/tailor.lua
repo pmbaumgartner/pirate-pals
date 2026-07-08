@@ -21,10 +21,14 @@ local tl = nil
 local TABS = { 'shop', 'sails' }
 local TAB_LABEL = { shop = 'SHOP', sails = 'SAILS' }
 
+-- Only price (gold) or mile (treasure-log milestone) outfits list here --
+-- secret/deed reward hats (data.OUTFITS entries with neither field) are
+-- never for sale.
 local function shopItems()
   local items = {}
   for i = 2, #data.OUTFITS do
-    items[#items + 1] = data.OUTFITS[i]
+    local o = data.OUTFITS[i]
+    if o.price or o.mile then items[#items + 1] = o end
   end
   return items
 end

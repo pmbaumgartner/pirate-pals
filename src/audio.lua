@@ -120,6 +120,10 @@ local MOTIFS = {
     tone(700, 0.08, 'sine', 0.05)
     tone(900, 0.09, 'sine', 0.05, nil, 0.08)
   end,
+  grandma = function()
+    tone(500, 0.07, 'sine', 0.05)
+    tone(650, 0.09, 'sine', 0.05, nil, 0.07)
+  end,
   king = function() tone(90, 0.16, 'sawtooth', 0.09, 45) end,
 }
 

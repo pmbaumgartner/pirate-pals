@@ -16,6 +16,7 @@ local M = {}
 local ROLE_COLOR = {
   captain = CO.gold, deckhand = CO.foam, strongman = CO.red,
   sharpshooter = CO.green, medic = CO.blue, king = CO.red,
+  grandma = CO.purple,
 }
 
 local THROTTLE = 0.9

@@ -73,6 +73,7 @@ return function(ctx, h)
   wait(0.6)
   expect(thief.soggy, 'thief should be soggy after splash')
   expect(thief.hp == 3, 'thief should take 7 damage from splash (10 - 7 = 3)')
+  expect(h.meta.data.secrets.sogybird, 'shoving the thief parrot into the splash did not find the sogybird secret')
   shot('gimmick')
 
   -- Battle-readability shots: stage a boarding with every foe parked within

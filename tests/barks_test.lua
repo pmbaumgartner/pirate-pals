@@ -25,7 +25,7 @@ end
 
 -- Every player role + king has every trigger; every line is a short,
 -- non-empty, ALL-CAPS floater (allowing digits/punctuation).
-local ROLES = { 'captain', 'deckhand', 'strongman', 'sharpshooter', 'medic', 'king' }
+local ROLES = { 'captain', 'deckhand', 'strongman', 'sharpshooter', 'medic', 'grandma', 'king' }
 for _, role in ipairs(ROLES) do
   local tbl = data.BARKS[role]
   ok(tbl ~= nil, role .. ' has a BARKS table')

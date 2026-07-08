@@ -52,6 +52,7 @@ engine.states.port = {
         m.gold = m.gold - cost
         m.upgrades[key] = tier + 1
         meta.save()
+        game.checkShipshape()
         SFX.buy()
         engine.addParts(VW - 50, 9, 14, CO.gold, 45)
         engine.addFloat(VW - 12, rowY - 8, 'UPGRADED!', CO.gold, 1)

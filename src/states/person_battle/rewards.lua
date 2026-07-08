@@ -69,6 +69,7 @@ function M.victoryLoot()
           if run.bonds[key] >= BOND_THRESHOLD and not run.bondsMade[key] then
             local wasFirstBond = next(run.bondsMade) == nil
             run.bondsMade[key] = true
+            if wasFirstBond then game.earnDeed('firstbond') end
             parts[#parts + 1] = { type = 'bond', a = ui_.ref.name, b = uj.ref.name }
             game.logMoment('gemS', 'SEA ' .. lv .. ': ' .. ui_.ref.name .. ' + ' .. uj.ref.name .. ' = BEST MATES!',
               { ui_.ref.name, uj.ref.name }, wasFirstBond)
@@ -80,13 +81,21 @@ function M.victoryLoot()
     end
   end
 
+  -- Grandma's rescue outranks the random recruit knock (no double recruit
+  -- card on one win). No crew-cap check: a quest payoff never fizzles.
+  if pb.grandmaFound then
+    run.grandmaRescued = true
+    parts[#parts + 1] = { type = 'recruit',
+      pirate = game.makePirate('grandma', 'GRANDMA', math.min(4, math.max(1, lv))) }
+  end
+
   -- Only roles with a join mapping can knock and ask (escaped/KO'd thieves
   -- have join = nil — no recruiting the gold-grabber).
   local joinable = {}
   for _, d in ipairs(pb.defeated) do
     if data.EROLES[d.role].join then joinable[#joinable + 1] = d end
   end
-  if #run.crew < 10 and #joinable > 0 and (#run.crew < 3 or util.chance(0.6)) then
+  if not pb.grandmaFound and #run.crew < 10 and #joinable > 0 and (#run.crew < 3 or util.chance(0.6)) then
     local dfd = util.pick(joinable)
     local role = (util.chance(0.18) and not game.crewHasRole('medic')) and 'medic' or data.EROLES[dfd.role].join
     local used = {}

@@ -16,10 +16,9 @@ local readability = require 'src.dev.readability'
 local M = { t = 0, dt = 0, shotsOn = false, frame = 0, readabilityMode = nil }
 
 -- Baton (src/input.lua) polls love.keyboard.isDown instead of consuming
--- key events, so tap() can't inject presses through input.keypressed alone
--- anymore. In script mode we OR a set of scripted-held keys into isDown;
--- this wrapper only ever exists in script runs (this module is never in
--- the default require graph).
+-- key events, so tap() injects presses by ORing a set of scripted-held
+-- keys into isDown; this wrapper only ever exists in script runs (this
+-- module is never in the default require graph).
 local scriptKeys = {}
 local realIsDown = love.keyboard.isDown
 love.keyboard.isDown = function(...)
@@ -40,10 +39,8 @@ end
 
 local function tap(key)
   scriptKeys[key] = true
-  input.keypressed(key)
   coroutine.yield()
   scriptKeys[key] = nil
-  input.keyreleased(key)
   coroutine.yield()
 end
 

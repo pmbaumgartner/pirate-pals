@@ -53,6 +53,8 @@ return function(ctx, h)
     shot('sail-chest')
     h.walkLoot()
     expect(game.run.gold > goldBefore, 'opening the chest did not add gold')
+    expect(h.meta.data.counts.chestsOpened and h.meta.data.counts.chestsOpened >= 1,
+      'opening a chest did not tick the chestsOpened counter')
   end
 
   -- Deterministic variant of stageTile: regen once via genFn, then convert a
@@ -106,6 +108,7 @@ return function(ctx, h)
     shot('sail-xdig')
     h.walkLoot()
     expect(game.run.quest == nil, 'digging the X did not clear the quest')
+    expect(h.meta.data.deeds.xmarks, 'digging up the quest X did not earn the xmarks deed')
   end
 
   -- 5. Port: sail onto it, expect the dock state, then back out to sail.
@@ -293,6 +296,40 @@ return function(ctx, h)
     shot('sail-trader-gift')
     h.walkLoot()
     expect(game.run.gold == goldBefore + 10, 'a broke trader meeting did not grant the flat +10 gold gift')
+    expect(h.meta.data.secrets.kindtrader, 'a broke trader gift did not find the kindtrader secret')
+  end
+
+  -- 13. Dig-anywhere: P1's A press next to any island hex ticks DIG DOG
+  -- regardless of the (10% chance) seashell find.
+  game.genSea(3, 'calm')
+  engine.setState('sail')
+  wait(0.3)
+  game.run.sea.enemies = {}
+  local digsBefore = h.meta.data.counts.digs or 0
+  local function findIslandNeighbor()
+    for y = 0, game.SEA_H - 1 do
+      for x = 0, game.SEA_W - 1 do
+        if game.tileAt(x, y) == game.T_ISLE then
+          for _, nb in ipairs(grid.hexNeighbors(x, y)) do
+            local nx, ny = nb[1], nb[2]
+            if nx >= 0 and ny >= 0 and nx < game.SEA_W and ny < game.SEA_H
+              and game.tileAt(nx, ny) == game.T_WATER and not game.enemyAt(nx, ny) then
+              return nx, ny
+            end
+          end
+        end
+      end
+    end
+  end
+  local digX, digY = findIslandNeighbor()
+  expect(digX ~= nil, 'no island with an open neighbor turned up to stage a dig')
+  if digX then
+    local ship = game.run.ship
+    ship.x, ship.y, ship.fx, ship.fy = digX, digY, digX, digY
+    ship.route, ship.anim = nil, nil
+    tap('z') -- P1's A button: the dig-anywhere verb
+    wait(0.2)
+    expect((h.meta.data.counts.digs or 0) == digsBefore + 1, 'digging near an island did not tick the digs counter')
   end
 
   -- Leave on a normal, clean sea for whatever runs after this module.

@@ -54,6 +54,7 @@ return function(ctx, h)
   wait(0.3)
   expect(#game.run.log == logBefore + 1, 'accepting the first recruit did not append a voyage log moment')
   expect(game.run.log[#game.run.log].first, 'first-recruit log entry should be flagged first')
+  expect(h.meta.data.deeds.firstpal, 'the voyage-first recruit did not earn the firstpal deed')
   local sparkyJoined = false
   for _, p in ipairs(game.run.crew) do
     if p.name == 'SPARKY' then sparkyJoined = true end

@@ -220,6 +220,24 @@ function M.scatterCrates(deckInfo)
   return crates
 end
 
+-- Grandma's shaky box (questline): one extra crate entry with a remembered
+-- key, so blocking/cover/AI treat it as any crate while draw + smash single
+-- it out. Returns nil on a pathological deck (box just re-seeds next sea).
+function M.placeGrandmaBox(deckInfo, crates)
+  local cand = deckInfo.crateCand
+  if #cand == 0 then return nil end
+  for _ = 1, 20 do
+    local t = cand[util.irand(1, #cand)]
+    local k = gk(t[1], t[2])
+    if not crates[k] then
+      crates[k] = true
+      if checkConnectivity(deckInfo, crates) then return k end
+      crates[k] = nil
+    end
+  end
+  return nil
+end
+
 -- Cursor step that skips holes: scans up to the deck's own bounding box in
 -- direction (dx, dy) for the next in-mask tile, or snaps back to (cx, cy).
 function M.moveCursor(cx, cy, dx, dy)
@@ -530,6 +548,7 @@ function M.damage(att, def, base, res, opts)
     engine.addFloat(dx + 8, dy - 12, 'PERFECT!', CO.gold, 2)
     local ax, ay = M.px(att.x, att.y)
     barks.say(att, ax, ay, 'perfect')
+    game.deedTick('perfectHits', 25, 'cannoncareer')
   else
     SFX.good()
   end
@@ -604,8 +623,10 @@ function M.checkEnd()
     M.resolveNaps()
     SFX.bigwin()
     victoryBarks()
+    game.deedTick('deckWins', 15, 'boardingparty')
     if pb.isBoss then
       local bossName = (pb.foeRef and pb.foeRef.name) or 'THE PIRATE KING'
+      if pb.foeRef and pb.foeRef.kraken then game.earnDeed('krakentamer') end
       engine.showBanner(bossName .. ' IS DEFEATED!', CO.gold, 1.3)
       M.schedule(function()
         engine.transition('VICTORY!', function() require('src.states.victory').start() end)
@@ -652,6 +673,7 @@ function M.actMenu(u)
     if u.role == 'medic' then sOk = #M.alliesOf(u, true) > 0 end
     if u.role == 'strongman' or u.role == 'deckhand' then sOk = #M.targetsOf(u, 1) > 0 end
     if u.role == 'sharpshooter' then sOk = #M.targetsOf(u, 99) > 0 end
+    if u.role == 'grandma' then sOk = #M.whipTargets(u) > 0 end
   end
   items[#items + 1] = { id = 'spc', label = sd.name, ok = sOk, desc = sd.desc }
   items[#items + 1] = { id = 'stay', label = 'STAY', ok = true, desc = 'DO NOTHING, SAVE STRENGTH' }
@@ -665,7 +687,8 @@ function M.adjacentCrates(u)
     local cy = u.y + grid.DIRS4[i][2]
     local k = gk(cx, cy)
     if S.pb.crates[k] then
-      out[#out + 1] = { x = cx, y = cy, isCrate = true, name = 'CRATE' }
+      out[#out + 1] = { x = cx, y = cy, isCrate = true,
+        name = k == S.pb.grandmaBoxK and 'SHAKY BOX' or 'CRATE' }
     end
   end
   return out
@@ -674,6 +697,7 @@ end
 function M.smashCrate(u, cx, cy)
   local k = gk(cx, cy)
   if not S.pb.crates[k] then return end
+  if k == S.pb.grandmaBoxK then return M.popGrandma(cx, cy) end
   S.pb.crates[k] = nil
   SFX.hit()
   local px, py = M.px(cx, cy)
@@ -688,15 +712,52 @@ function M.smashCrate(u, cx, cy)
   end
 end
 
+-- Grandma pops! The secret is found here (idempotent, meta-level); the
+-- run-level rescue flag waits for victory in rewards.lua, so a lost battle
+-- re-offers the box on a later sea instead of stranding her.
+function M.popGrandma(cx, cy)
+  local pb = S.pb
+  pb.crates[gk(cx, cy)] = nil
+  pb.grandmaBoxK = nil
+  if pb.foeRef then pb.foeRef.grandmaBox = nil end
+  pb.grandmaFound = true
+  pb.grandmaAt = { x = cx, y = cy }
+  SFX.fanfare()
+  engine.shakeIt(3, 0.3)
+  local px, py = M.px(cx, cy)
+  engine.addParts(px + 8, py + 8, 16, CO.gold, 55)
+  engine.addParts(px + 8, py + 8, 10, CO.wood, 40)
+  engine.addFloat(px + 8, py - 12, 'GRANDMA!', CO.gold, 2)
+  game.foundSecret('grandma')
+end
+
+-- NOODLE WHIP targets: enemies on Grandma's row or column within 3 tiles;
+-- the lash then sweeps every tile toward the pick (see confirmTarget).
+function M.whipTargets(u)
+  local out = {}
+  for _, o in ipairs(S.pb.units) do
+    if o.alive and o.side ~= u.side and (o.x == u.x or o.y == u.y)
+      and grid.manhattan(u.x, u.y, o.x, o.y) <= 3 then
+      out[#out + 1] = o
+    end
+  end
+  return out
+end
+
 function M.applySlideImpact(u, impact)
   if not impact then return end
   local tx, ty = M.px(u.x, u.y)
   u.hp = math.max(0, u.hp - impact.damage)
   if impact.soggy then
     u.soggy = true
-    if u.role == 'thief' and u.loot then
-      u.loot = nil
-      engine.addFloat(tx + 8, ty - 16, 'GOT THE GOLD BACK!', CO.gold, 2)
+    if u.role == 'thief' then
+      -- Hidden delight (for the 'sogybird' secret): shove the thief parrot
+      -- into a hole and it lands with a splash, gold or not.
+      game.foundSecret('sogybird')
+      if u.loot then
+        u.loot = nil
+        engine.addFloat(tx + 8, ty - 16, 'GOT THE GOLD BACK!', CO.gold, 2)
+      end
     end
   end
   if impact.kind == 'splash' then

@@ -319,12 +319,6 @@ function love.keypressed(key)
       end
     end
   end
-
-  input.keypressed(key)
-end
-
-function love.keyreleased(key)
-  input.keyreleased(key)
 end
 
 function love.mousepressed(x, y, button, istouch)

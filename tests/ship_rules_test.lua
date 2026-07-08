@@ -53,9 +53,9 @@ ok(game.run.bossFlotsam ~= nil, 'game.run.bossFlotsam exists')
 
 -- 3. Test ship_rules helpers
 game.newGame('solo')
-ok(shipRules.getFittingTier('hull') == 0, 'fitting tier default is 0')
+ok(shipRules.getFittingTierForRun(game.run, 'hull') == 0, 'fitting tier default is 0')
 game.run.fittings.hull = 2
-ok(shipRules.getFittingTier('hull') == 2, 'fitting tier retrieves correctly')
+ok(shipRules.getFittingTierForRun(game.run, 'hull') == 2, 'fitting tier retrieves correctly')
 
 ok(shipRules.getFittingBonus('hull', 2) == 12, 'hull bonus tier 2 is 12')
 ok(shipRules.getFittingBonus('sails', 3) == 3, 'sails bonus tier 3 is 3')
@@ -73,13 +73,13 @@ for _, p in ipairs(game.run.party) do
   end
 end
 
-ok(shipRules.getPlayerHullMax(1) == 30 + 12, 'hull max is 30 + 12 = 42') -- base ship max HP is 30 (default meta)
-ok(shipRules.getPlayerSails(1) == 1 + 1, 'sails is 1 + 1 = 2')
-ok(shipRules.getPlayerGuns(1) == 1 + 3 + math.floor(4 / 2), 'guns is 1 + 3 + 2 = 6')
+ok(shipRules.getPlayerHullMaxForRun(game.run) == 30 + 12, 'hull max is 30 + 12 = 42') -- base ship max HP is 30 (default meta)
+ok(shipRules.getPlayerSailsForRun(game.run) == 1 + 1, 'sails is 1 + 1 = 2')
+ok(shipRules.getPlayerGunsForRun(game.run, 1) == 1 + 3 + math.floor(4 / 2), 'guns is 1 + 3 + 2 = 6')
 
 -- 4. Test known shots and blueprints
-ok(shipRules.isShotKnown('round') == true, 'round is always known')
-ok(shipRules.isShotKnown('chain') == false, 'chain is not known initially')
+ok(shipRules.isShotKnownForRun(game.run, 'round') == true, 'round is always known')
+ok(shipRules.isShotKnownForRun(game.run, 'chain') == false, 'chain is not known initially')
 ok(shipRules.getKnownShots()[1] == 'round' and #shipRules.getKnownShots() == 1, 'only round is known')
 
 game.run.blueprints.chain = true
@@ -87,7 +87,7 @@ ok(shipRules.hasBlueprint('chain') == true, 'chain blueprint collected')
 ok(shipRules.hasBlueprint('grape') == false, 'grape blueprint not collected')
 
 game.run.fittings.slot = 'chain'
-ok(shipRules.isShotKnown('chain') == true, 'chain is now known when slotted')
+ok(shipRules.isShotKnownForRun(game.run, 'chain') == true, 'chain is now known when slotted')
 ok(#shipRules.getKnownShots() == 2 and shipRules.getKnownShots()[2] == 'chain', 'round and chain are known')
 
 -- 5. Test damage preview

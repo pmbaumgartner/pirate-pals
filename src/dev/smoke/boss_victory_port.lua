@@ -54,6 +54,8 @@ return function(ctx, h)
   expect(hasFirstRecruitLog, 'first-recruit moment missing from the voyage log')
   expect(hasVictoryLog, 'victory did not log a PIRATE LEGENDS moment')
   expect(meta.data.legends.SPARKY ~= nil, 'victory did not distill a legend highlight for SPARKY')
+  expect(meta.data.deeds.kingtoppler, 'a voyage victory did not earn the kingtoppler deed')
+  expect(meta.data.deeds.goldhoarder, 'banking 1000 gold did not earn the goldhoarder deed')
 
   tap('z')
   h.settle()
@@ -77,6 +79,19 @@ return function(ctx, h)
   expect(meta.data.upgrades.cook >= 1, 'cook upgrade did not apply')
   expect(meta.data.upgrades.steady >= 1, 'steady hands upgrade did not apply')
 
+  -- SHIPSHAPE/HAT RACK: both read other meta state directly rather than
+  -- counting toward a key/goal, so a direct poke + the real check function
+  -- exercises the hook without driving a whole shop-purchase loop.
+  meta.data.upgrades = { figurehead = 3, sails = 2, cook = 3, steady = 2 }
+  game.checkShipshape()
+  expect(meta.data.deeds.shipshape, 'maxing every Home Port upgrade did not earn the shipshape deed')
+
+  for _, hid in ipairs({ 'none', 'bandR', 'patch', 'straw', 'tri', 'parrot', 'bandB', 'cap', 'crown' }) do
+    meta.data.hats[hid] = true
+  end
+  game.checkHatRack()
+  expect(meta.data.deeds.hatrack, 'owning all 9 base hats did not earn the hatrack deed')
+
   -- NEW VOYAGE: crew names/roles carry over at level 1; a fresh ship battle
   -- picks up the FIGUREHEAD/BETTER SAILS bonuses just bought. The loop above
   -- already left the cursor on the NEW VOYAGE row after its last tap('down').
@@ -84,6 +99,7 @@ return function(ctx, h)
   waitUntil(function() return engine.cur == 'sail' end, 5)
   expect(game.run.crew[1].lvl == 1, 'new voyage+ crew was not reset to level 1')
   expect(game.run.metaTier == 1, 'new voyage+ did not bump metaTier')
+  expect(meta.data.deeds.newvoyage, 'starting a New Voyage+ did not earn the newvoyage deed')
 
   shipBattle.start(game.run.sea.enemies[1])
   expect(shipBattle.sb.ships[1].max == meta.shipMaxHp(), 'ship battle did not pick up the FIGUREHEAD upgrade')

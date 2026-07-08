@@ -298,6 +298,22 @@ return function(ctx, h)
   engine.setState('sail')
   wait(0.3)
 
+  -- 14: BIRDS OF A FEATHER -- a pal wearing PARROT PAL boards alongside the
+  -- thief parrot. Fires synchronously inside personBattle.start, so it's
+  -- already recorded by the time bootBoarding returns.
+  local finOut = fin.out
+  fin.out = 'parrot'
+  bootBoarding({ lv = 4, name = 'BIRD FOE', class = 'sloop' }, { 'thief' }, 'classic', { cappy, fin })
+  expect(h.meta.data.secrets.birdsquad, 'a parrot pal boarding with a thief did not find the birdsquad secret')
+  fin.out = finOut
+  engine.setState('sail')
+  wait(0.3)
+
+  -- By now DECK EXPLORER's 8 shapes have all been boarded at least once:
+  -- classic throughout boarding_real.lua + this module, the other 7 in
+  -- boarding_gallery.lua's shape gallery.
+  expect(h.meta.data.deeds.deckexplorer, 'fighting on every deck shape did not earn the deckexplorer deed')
+
   run.crew = crewSnapshot
   run.party = partySnapshot
   expect(engine.cur == 'sail', 'boarding specials module did not leave state on sail')

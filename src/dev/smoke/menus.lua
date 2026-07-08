@@ -78,9 +78,10 @@ return function(ctx, h)
 
   -- SHOP tab (tl.tab defaults to 'shop' on enter, tailor.lua:66): buy an
   -- affordable outfit, re-tap it for the OWNED bump, then an unaffordable
-  -- and a milestone-locked row. Rows are data.OUTFITS[2..9] in order
-  -- (tailor.lua's shopItems, line 24); row 0 = bandR (15G), row 1 = patch
-  -- (25G), rows 2-4 = straw/tri/parrot, row 5 = bandB (mile 3, no price).
+  -- and a milestone-locked row. Rows are the price/mile data.OUTFITS
+  -- entries in order (tailor.lua's shopItems); row 0 = bandR (15G), row 1
+  -- = patch (25G), rows 2-5 = souwester/straw/tri/parrot, row 6 = bandB
+  -- (mile 3, no price).
   local goldSnap = game.run.gold
   local ownedSnap = { bandR = game.run.owned.bandR, patch = game.run.owned.patch, bandB = game.run.owned.bandB }
   local hatsSnap = h.meta.data.hats.bandR
@@ -106,7 +107,9 @@ return function(ctx, h)
   wait(0.2)
   expect(game.run.gold == 0 and not game.run.owned.patch, 'an unaffordable purchase should not deduct gold or mark it owned')
 
-  -- (d) row 5 (bandB, milestone-locked, no price): LOCKED bump, no purchase.
+  -- (d) row 6 (bandB, milestone-locked, no price): LOCKED bump, no purchase.
+  tap('down')
+  wait(0.1)
   tap('down')
   wait(0.1)
   tap('down')
@@ -197,11 +200,14 @@ return function(ctx, h)
   wait(1.0)
   shot('log')
 
-  -- SECRETS tab: toggled with the CREW hotkey ('c'), a sibling slot-grid
-  -- tab to TREASURE.
+  -- SECRETS and DEEDS tabs: the CREW hotkey ('c') cycles TREASURE ->
+  -- SECRETS -> DEEDS -> TREASURE, all sibling slot-grid tabs.
   tap('c')
   wait(0.3)
   shot('log-secrets')
+  tap('c')
+  wait(0.3)
+  shot('log-deeds')
   tap('c')
   wait(0.2)
 

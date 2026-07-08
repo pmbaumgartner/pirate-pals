@@ -197,7 +197,15 @@ function M.draw()
   for kk in pairs(pb.crates) do
     local x, y = grid.parseKey(kk)
     local cx, cy = model.px(x, y)
-    sprites.draw('crate', cx, cy)
+    if kk == pb.grandmaBoxK then
+      sprites.draw('giftbox', cx + util.round(math.sin(gt * 22)), cy)
+    else
+      sprites.draw('crate', cx, cy)
+    end
+  end
+  if pb.grandmaAt then
+    local gx, gy = model.px(pb.grandmaAt.x, pb.grandmaAt.y)
+    sprites.drawPirate('grandma', 'none', gx, gy + util.round(math.sin(gt * 2.5)))
   end
   if pb.vent then
     drawHeatTile(pb.vent.x, pb.vent.y, pb.vent.cycle == 2, gt)

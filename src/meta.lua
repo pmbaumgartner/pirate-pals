@@ -3,6 +3,7 @@
 -- hats, and voyage-completion counters. `M.data` is plain data (same
 -- constraint as game.run) so it round-trips through serialize.lua.
 local serialize = require 'src.serialize'
+local data = require 'src.data'
 
 local M = {}
 
@@ -41,6 +42,8 @@ local function defaultData()
     golden = false,
     legends = {},
     secrets = {},
+    deeds = {},
+    counts = {},
   }
 end
 
@@ -54,6 +57,36 @@ end
 
 function M.hasSave()
   return love.filesystem.getInfo(M.SAVE_PATH) ~= nil
+end
+
+-- Retro-grant: an older save may have earned a fishfriend/seashell/
+-- krakentamer/all-deeds reward before that reward hat existed. load() calls
+-- this after filling in defaults so nobody loses a hat they already earned.
+-- data.lua has no requires of its own, so requiring it here can't cycle back
+-- through game.lua (which requires meta.lua).
+local function grantRetroRewards()
+  local changed = false
+  for _, s in ipairs(data.SECRETS) do
+    if s.reward and M.data.secrets[s.id] and not M.data.hats[s.reward] then
+      M.data.hats[s.reward] = true
+      changed = true
+    end
+  end
+  for _, d in ipairs(data.DEEDS) do
+    if d.reward and M.data.deeds[d.id] and not M.data.hats[d.reward] then
+      M.data.hats[d.reward] = true
+      changed = true
+    end
+  end
+  if not M.data.hats[data.ALL_DEEDS_REWARD] then
+    local n = 0
+    for _, v in pairs(M.data.deeds) do if v then n = n + 1 end end
+    if n >= #data.DEEDS then
+      M.data.hats[data.ALL_DEEDS_REWARD] = true
+      changed = true
+    end
+  end
+  if changed then M.save() end
 end
 
 -- Returns true and swaps in the loaded meta on success; false leaves a fresh
@@ -76,7 +109,10 @@ function M.load()
   saved.golden = saved.golden or false
   saved.legends = saved.legends or {}
   saved.secrets = saved.secrets or {}
+  saved.deeds = saved.deeds or {}
+  saved.counts = saved.counts or {}
   M.data = saved
+  grantRetroRewards()
   return true
 end
 

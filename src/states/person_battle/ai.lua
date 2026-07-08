@@ -84,9 +84,27 @@ function M.pumpForTest()
   end
 end
 
+-- Hidden delight (for the 'nestking' secret): a pal holds the perch (`^`)
+-- at the end of 3 consecutive player turns. Any player turn without a pal
+-- up there resets the streak.
+local function checkPerch(pb)
+  if not pb.perch then return end
+  local px, py = pb.perch[1], pb.perch[2]
+  local u = model.unitAt(px, py)
+  if u and u.side == 'p' and u.alive then
+    pb.perchStreak = (pb.perchStreak or 0) + 1
+    if pb.perchStreak >= 3 then
+      game.foundSecret('nestking')
+    end
+  else
+    pb.perchStreak = 0
+  end
+end
+
 function M.startFoePhase()
   local pb = S.pb
   pb.phase = 'foe'
+  checkPerch(pb)
   for _, pl in pairs(pb.pl) do
     pl.sel, pl.reach, pl.origin = nil, nil, nil
     pl.stage = 'pick'

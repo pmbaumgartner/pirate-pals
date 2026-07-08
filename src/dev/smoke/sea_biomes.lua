@@ -47,4 +47,8 @@ return function(ctx, h)
   expect(game.run.gold == 25, 'trade buy did not cost 15 gold')
   tap('z') -- the inserted treasure card
   wait(1.0)
+
+  -- Every genSea call above (plus sail_basics' fresh sea-1 calm) has now
+  -- touched all 4 biome flags, earning SEEN THE SEAS.
+  expect(h.meta.data.deeds.seenseas, 'sailing all 4 biomes did not earn the seenseas deed')
 end

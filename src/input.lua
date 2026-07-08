@@ -143,12 +143,6 @@ function M.setCoop(v)
   M.p1.player = baton.new({ controls = p1Controls(not M.coop), joystick = M.jsSlot[1] })
 end
 
--- Baton polls love.keyboard.isDown each frame, so these are no longer part
--- of the input path; kept because main.lua (and dev scripts) still call
--- them, and so a future event-driven need has its seam.
-function M.keypressed(_key) end
-function M.keyreleased(_key) end
-
 -- (cx, cy) are virtual-canvas coordinates; anywhere off a button acts as 'a'
 -- and is also reported as a positional tap (M.tap) for one frame.
 function M.pointerDown(id, cx, cy, isTouch)

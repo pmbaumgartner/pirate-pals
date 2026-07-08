@@ -4,10 +4,6 @@ local meta = require 'src.meta'
 
 local M = {}
 
-local function runOrCurrent(run)
-  return run or game.run
-end
-
 local function chance(chanceFn, p)
   if chanceFn then return chanceFn(p) end
   return math.random() < p
@@ -21,13 +17,7 @@ local function ownerOf(run, pirate)
 end
 
 -- Returns the tier (0, 1, 2, or 3) of a given fitting ('hull', 'sails', 'guns')
-function M.getFittingTier(fittingType)
-  return M.getFittingTierForRun(game.run, fittingType)
-end
-
 function M.getFittingTierForRun(run, fittingType)
-  run = runOrCurrent(run)
-  if not run or not run.fittings then return 0 end
   return run.fittings[fittingType] or 0
 end
 
@@ -43,39 +33,26 @@ function M.getFittingBonus(fittingType, tier)
   return 0
 end
 
--- Calculates the maximum HP for player ship index (1 or 2)
-function M.getPlayerHullMax(shipIndex)
-  return M.getPlayerHullMaxForRun(game.run, shipIndex)
-end
-
-function M.getPlayerHullMaxForRun(run, shipIndex)
+-- Calculates the maximum HP for the player ship
+function M.getPlayerHullMaxForRun(run)
   local tier = M.getFittingTierForRun(run, 'hull')
   local bonus = M.getFittingBonus('hull', tier)
   return meta.shipMaxHp() + bonus
 end
 
--- Calculates the SAILS stat for player ship index (1 or 2)
-function M.getPlayerSails(shipIndex)
-  return M.getPlayerSailsForRun(game.run, shipIndex)
-end
-
-function M.getPlayerSailsForRun(run, shipIndex)
+-- Calculates the SAILS stat for the player ship
+function M.getPlayerSailsForRun(run)
   local tier = M.getFittingTierForRun(run, 'sails')
   local bonus = M.getFittingBonus('sails', tier)
   return 1 + bonus
 end
 
 -- Calculates the GUNS stat for player ship index (1 or 2)
-function M.getPlayerGuns(shipIndex)
-  return M.getPlayerGunsForRun(game.run, shipIndex)
-end
-
 function M.getPlayerGunsForRun(run, shipIndex)
-  run = runOrCurrent(run)
   local tier = M.getFittingTierForRun(run, 'guns')
   local bonus = M.getFittingBonus('guns', tier)
   local capLevel = 1
-  if run and run.party then
+  if run.party then
     if run.mode == 'captains' then
       local owner = (shipIndex == 2) and 'p2' or 'p1'
       for _, p in ipairs(run.party) do
@@ -98,14 +75,9 @@ function M.getPlayerGunsForRun(run, shipIndex)
 end
 
 -- Checks if a shot type is currently known (equipped or default)
-function M.isShotKnown(shotId)
-  return M.isShotKnownForRun(game.run, shotId)
-end
-
 function M.isShotKnownForRun(run, shotId)
-  run = runOrCurrent(run)
   if shotId == 'round' then return true end
-  if run and run.fittings and run.fittings.slot == shotId then
+  if run.fittings and run.fittings.slot == shotId then
     return true
   end
   return false
@@ -113,13 +85,9 @@ end
 
 -- Returns the list of shot IDs known in battle
 function M.getKnownShots()
-  return M.getKnownShotsForRun(game.run)
-end
-
-function M.getKnownShotsForRun(run)
-  run = runOrCurrent(run)
+  local run = game.run
   local list = { 'round' }
-  if run and run.fittings and run.fittings.slot then
+  if run.fittings and run.fittings.slot then
     list[#list + 1] = run.fittings.slot
   end
   return list
@@ -315,7 +283,7 @@ end
 
 function M.buildPlayerShip(run, shipIndex, opts)
   opts = opts or {}
-  local maxHp = M.getPlayerHullMaxForRun(run, shipIndex)
+  local maxHp = M.getPlayerHullMaxForRun(run)
   return {
     hp = maxHp - (opts.hurt or 0), max = maxHp, repairs = 3, maxRepairs = 3,
     dodge = opts.dodge or 0,
@@ -323,7 +291,7 @@ function M.buildPlayerShip(run, shipIndex, opts)
     menu = 0, submenu = nil, sub = 0, chosen = nil, confirmOrder = nil,
     patched = false, patchRounds = 0,
     guns = M.getPlayerGunsForRun(run, shipIndex),
-    sails = M.getPlayerSailsForRun(run, shipIndex),
+    sails = M.getPlayerSailsForRun(run),
     gunsStage = 0, sailsStage = opts.sailsStage or 0,
     powder = M.defaultPowder(),
   }

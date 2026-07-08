@@ -185,6 +185,30 @@ local function fireBall(fromWho, toWho, dmg, opts)
   }
 end
 
+-- Ends the battle on the foe's side: banner, HP/sails carry to the boarding
+-- transition's foeRef, then hand off to person_battle (boss route skips
+-- to startBoss).
+local function foeDefeated()
+  sb.over = true
+  SFX.bigwin()
+  sb.msg = 'SHIP DISABLED!'
+  local isBoss = sb.isBoss
+  local foeRef = sb.foeRef
+  game.deedTick('shipsSunk', 15, 'shipwrecker')
+  if foeRef.class then
+    game.deedFlag('fleet_' .. foeRef.class,
+      { 'fleet_sloop', 'fleet_brig', 'fleet_fireship', 'fleet_manowar' }, 'fleetspotter')
+  end
+  foeRef.gunsStage = sb.foe.gunsStage
+  foeRef.sailsStage = sb.foe.sailsStage
+  beginCo(function()
+    wait(1.3)
+    engine.transition('BOARD THE SHIP!', function()
+      if isBoss then personBattle.startBoss(foeRef) else personBattle.start(foeRef) end
+    end)
+  end)
+end
+
 impact = function(who, dmg, opts)
   local tgt = targetEnt(who)
   local ex, ey = shipXY(who)
@@ -241,19 +265,7 @@ impact = function(who, dmg, opts)
 
   if tgt.hp <= 0 then
     if who == 'foe' then
-      sb.over = true
-      SFX.bigwin()
-      sb.msg = 'SHIP DISABLED!'
-      local isBoss = sb.isBoss
-      local foeRef = sb.foeRef
-      foeRef.gunsStage = sb.foe.gunsStage
-      foeRef.sailsStage = sb.foe.sailsStage
-      beginCo(function()
-        wait(1.3)
-        engine.transition('BOARD THE SHIP!', function()
-          if isBoss then personBattle.startBoss(foeRef) else personBattle.start(foeRef) end
-        end)
-      end)
+      foeDefeated()
     else
       shipDown(who)
     end
@@ -479,18 +491,7 @@ local function runFoeAct()
       local ex, ey = shipXY('foe')
       engine.addFloat(ex + 16, ey - 22, 'RAM DODGED! -' .. data.KING.ramRecoil .. ' HULL', CO.green, 2)
       if f.hp <= 0 then
-        sb.over = true
-        SFX.bigwin()
-        sb.msg = 'SHIP DISABLED!'
-        local foeRef = sb.foeRef
-        foeRef.gunsStage = f.gunsStage
-        foeRef.sailsStage = f.sailsStage
-        beginCo(function()
-          wait(1.3)
-          engine.transition('BOARD THE SHIP!', function()
-            personBattle.startBoss(foeRef)
-          end)
-        end)
+        foeDefeated()
         return
       end
       wait(1.0)
@@ -530,19 +531,7 @@ local function runFoeTurn()
     engine.addFloat(ex + 16, ey - 18, '-4 FIRE!', CO.orange, 1.5)
     SFX.hit()
     if sb.foe.hp <= 0 then
-      sb.over = true
-      SFX.bigwin()
-      sb.msg = 'SHIP DISABLED!'
-      local isBoss = sb.isBoss
-      local foeRef = sb.foeRef
-      foeRef.gunsStage = sb.foe.gunsStage
-      foeRef.sailsStage = sb.foe.sailsStage
-      beginCo(function()
-        wait(1.3)
-        engine.transition('BOARD THE SHIP!', function()
-          if isBoss then personBattle.startBoss(foeRef) else personBattle.start(foeRef) end
-        end)
-      end)
+      foeDefeated()
       return
     end
     sb.foe.ablaze = sb.foe.ablaze - 1
@@ -588,12 +577,13 @@ local function shipMenuItems(i)
   end
   local anySpec = #specialPartyFor(i) > 0
   local minDmg, maxDmg = shipRules.getShotPreview(sh, sb.foe, 'round')
+  local dodgePct = math.floor(shipRules.getDodgeChance(sh.sails, sh.sailsStage, false) * 100 + 0.5)
   return {
     { id = 'fire', label = 'FIRE!', ok = true,
       desc = (sh.range == 'NEAR' and 'NEAR: ' or 'FAR: ') .. 'ROUND ' .. minDmg .. '-' .. maxDmg },
     { id = 'move', label = 'MOVE', ok = true,
       desc = (sb.isBoss and sb.foe.intent == 'bigshot' and sb.foe.target == i) and 'DODGE THE BIG SHOT!'
-        or ((sh.range == 'NEAR' and 'SAIL AWAY' or 'SAIL CLOSER') .. ' + DODGE!') },
+        or ((sh.range == 'NEAR' and 'SAIL AWAY' or 'SAIL CLOSER') .. ' + DODGE ' .. dodgePct .. '%!') },
     { id = 'fix', label = 'FIX x' .. sh.repairs, ok = sh.repairs > 0 and sh.hp < sh.max, desc = 'PATCH THE HULL +15' },
     { id = 'spec', label = 'SPECIAL', ok = anySpec, desc = 'CREW POWERS!' },
   }
@@ -630,6 +620,16 @@ local function resolveSpecialAction(i, p)
     engine.addParts(ex + 16, ey + 6, 12, CO.green, 30)
     engine.addFloat(ex + 16, ey - 18, '+12', CO.green, 2)
     wait(0.7)
+  elseif r == 'grandma' then
+    -- Pudding pot: a lobbed hit plus comfort food for the hull — weaker
+    -- than either specialist, the only power that does both.
+    fireBall(i, 'foe', 6 + p.lvl + util.irand(0, 2), {})
+    waitAnim()
+    sh.hp = math.min(sh.max, sh.hp + 6)
+    SFX.heal()
+    engine.addParts(ex + 16, ey + 6, 10, CO.green, 30)
+    engine.addFloat(ex + 16, ey - 18, '+6 PUDDING!', CO.green, 2)
+    wait(0.7)
   end
 end
 
@@ -652,11 +652,13 @@ local function doShipAction(i, id)
     local res = waitTiming(timing.cfg(sb.foe.lv, false, meta.steadyMult()), pressLabel('FIRE', fireOwner(i)), 'good', fireOwner(i))
     if res == 'perfect' then
       sb.perfectFireCount = sb.perfectFireCount + 1
+      game.deedTick('perfectHits', 25, 'cannoncareer')
       if sb.perfectFireCount >= 3 and not sb.cannonballFx then
         sb.cannonballFx = true
         game.foundSecret('cannonball')
       end
     end
+    game.deedFlag('shot_' .. shotId, { 'shot_round', 'shot_chain', 'shot_grape', 'shot_fire' }, 'fullpowder')
     local outcome = shipRules.resolveShotDamage(sh, sb.foe, shotId, res, util.irand(0, 2))
     fireBall(i, 'foe', outcome.damage, {
       isWeak = outcome.isWeak,

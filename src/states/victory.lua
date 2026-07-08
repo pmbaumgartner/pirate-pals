@@ -88,7 +88,9 @@ function M.start()
   -- Gold gets a job: the voyage's gold banks into the meta pool spent
   -- at Home Port; the 12/12 treasure log permanently unlocks sea 9.
   meta.data.gold = meta.data.gold + run.gold
+  game.deedTick('goldBanked', 500, 'goldhoarder', run.gold)
   meta.data.voyagesWon = meta.data.voyagesWon + 1
+  game.earnDeed('kingtoppler')
   local golden = game.distinctTreasures() >= 12
   if golden then meta.data.golden = true end
   distillLegends(run)
@@ -198,9 +200,10 @@ engine.states.victory = {
       end
     end
 
-    font.drawText('GOLD BANKED  ' .. run.gold, VW / 2, 128, CO.gold, 1, 'center')
-    font.drawText('TREASURE  ' .. game.distinctTreasures() .. '/12', VW / 2, 140, CO.purple, 1, 'center')
-    font.drawText('SECRETS  ' .. game.distinctSecrets() .. '/' .. #data.SECRETS, VW / 2, 152, CO.foam, 1, 'center')
+    font.drawText('TREASURE ' .. game.distinctTreasures() .. '/12   SECRETS ' .. game.distinctSecrets() .. '/' .. #data.SECRETS,
+      VW / 2, 128, CO.purple, 1, 'center')
+    font.drawText('DEEDS ' .. game.distinctDeeds() .. '/' .. #data.DEEDS .. '   GOLD BANKED ' .. run.gold,
+      VW / 2, 140, CO.gold, 1, 'center')
 
     if math.floor(vc.t * 2) % 2 == 0 then
       font.drawTextO('Z TO HOME PORT   L FULL LOG', VW / 2, VH - 14, CO.gray, 1, 'center')

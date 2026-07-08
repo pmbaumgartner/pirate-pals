@@ -28,6 +28,15 @@ return function(ctx, h)
   end
   expect(game.run.ship2.x ~= sx0 or game.run.ship2.y ~= sy0, 'ship2 did not move on P2 input')
 
+  -- RAFT-UP: parking both ships on the same hex for ~2s of game time finds a
+  -- secret (updateRaftUp only runs while both ships are settled and fleet
+  -- mode is on, so it's exercised nowhere outside captains).
+  local sh1r, sh2r = game.run.ship, game.run.ship2
+  sh2r.x, sh2r.y, sh2r.fx, sh2r.fy = sh1r.x, sh1r.y, sh1r.x, sh1r.y
+  sh2r.route, sh2r.anim = nil, nil
+  wait(2.3)
+  expect(h.meta.data.secrets.raftup, 'two ships sharing a hex for 2+ seconds did not find the raftup secret')
+
   -- Either ship bumping a foe pulls the fleet into one shared battle. Park
   -- next to the foe and tap-step onto it — a long scripted route can cross a
   -- port/chest/event tile and hijack the state.

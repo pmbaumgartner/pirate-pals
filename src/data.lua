@@ -18,6 +18,11 @@ M.ROLES = {
   medic = { label = 'MEDIC', hp = 11, atk = 3, move = 3, range = 1,
     spec = { name = 'PATCH UP', desc = 'HEAL A PAL +8' },
     ship = { name = 'PATCH SHIP', desc = 'REPAIR +12' } },
+  -- Secret rescue pal (Grandma and the Pirates questline): only joins via the
+  -- sea-5 shaky box, never the random recruit pool or newGamePlus carryover.
+  grandma = { label = 'GRANDMA', hp = 13, atk = 4, move = 3, range = 1,
+    spec = { name = 'NOODLE WHIP', desc = 'LASH FOES IN A ROW' },
+    ship = { name = 'NOODLE PUDDING CATAPULT', desc = 'SPLAT A FOE, FEED THE CREW' } },
 }
 
 M.EROLES = {
@@ -139,18 +144,26 @@ M.DECKS = {
   } },
 }
 
--- Outfits are bought with gold (price) or unlocked at treasure-log
--- milestones (mile). Order matters: index 1 is the default.
+-- Outfits are bought with gold (price), unlocked at treasure-log milestones
+-- (mile), or awarded by a secret/deed (neither field set -- see SECRETS'/
+-- DEEDS' `reward` and the all-deeds check in game.earnDeed). Order matters:
+-- index 1 is the default. tailor.lua's shopItems() only lists price/mile
+-- entries, so reward-only hats never show up for sale.
 M.OUTFITS = {
   { id = 'none',  name = 'NO HAT' },
   { id = 'bandR', name = 'RED BANDANA', price = 15 },
   { id = 'patch', name = 'EYEPATCH', price = 25 },
+  { id = 'souwester', name = "SOU'WESTER", price = 35 },
   { id = 'straw', name = 'STRAW HAT', price = 40 },
   { id = 'tri',   name = 'TRICORN', price = 60 },
   { id = 'parrot', name = 'PARROT PAL', price = 120 },
   { id = 'bandB', name = 'BLUE BANDANA', mile = 3 },
   { id = 'cap',   name = "CAPTAIN'S HAT", mile = 6 },
   { id = 'crown', name = 'ROYAL CROWN', mile = 9 },
+  { id = 'fish',  name = 'FISH HAT' },
+  { id = 'shell', name = 'SHELL CAP' },
+  { id = 'kraken', name = 'KRAKEN CAP' },
+  { id = 'goldband', name = 'GOLD BANDANA' },
 }
 
 M.TREASURES = {
@@ -174,65 +187,108 @@ M.MILESTONES = { { n = 3, id = 'bandB' }, { n = 6, id = 'cap' }, { n = 9, id = '
 -- never rules -- `name` is shown once found, `hint` is the vague ALL-CAPS
 -- nudge shown as the unfound slot's caption. `src/game.lua`'s foundSecret is
 -- the only writer of meta.data.secrets; new entries here pair with a
--- foundSecret(id) call at whatever hook triggers them.
+-- foundSecret(id) call at whatever hook triggers them. `reward` (an
+-- OUTFITS id) is optional -- foundSecret unlocks it via game.unlockHat.
+-- `slot` (a sprite name) is optional -- log.lua's curios shelf draws it in
+-- the found slot instead of the generic checkmark.
 M.SECRETS = {
-  { id = 'hatbark', name = 'ALL HAIL!', hint = 'A CROWNED PAL SPEAKS UP' },
-  { id = 'napbuddies', name = 'NAP BUDDIES', hint = 'TWO SLEEPY PALS TOGETHER' },
-  { id = 'kingsniff', name = 'NICE HATS. STILL NO.', hint = 'MATCHING HATS, FINAL SEA' },
-  { id = 'cannonball', name = 'CANNONBALL RUN!', hint = 'THREE PERFECT SHOTS' },
-  { id = 'seashell', name = 'SEASHELL!', hint = 'DIG NEAR THE SAND' },
-  { id = 'echobark', name = 'ECHO SQUAWK!', hint = 'BOTH BARK AS ONE' },
-  { id = 'bootsong', name = 'BOOT SONG', hint = 'SIT STILL A WHILE' },
-  { id = 'fishfriend', name = 'FISH FRIEND!', hint = 'HOLD STILL ON ICY WATER' },
-  { id = 'luckycoin', name = 'LUCKY STREAK!', hint = 'CLEAR EVERY CHEST UNBROKEN' },
-  { id = 'tightrope', name = 'NOBODY WOBBLED!', hint = 'CROSS THE PLANK CAREFULLY' },
+  { id = 'hatbark', name = 'ALL HAIL!', hint = 'WEAR THE CROWN INTO BATTLE AND LISTEN' },
+  { id = 'napbuddies', name = 'NAP BUDDIES', hint = 'PEEK AT THE CREW WHEN TWO PALS NAP' },
+  { id = 'kingsniff', name = 'NICE HATS. STILL NO.', hint = "MATCHING BANDANAS ON THE KING'S SEA" },
+  { id = 'cannonball', name = 'CANNONBALL RUN!', hint = 'THREE PERFECT SHOTS IN ONE SEA FIGHT' },
+  { id = 'seashell', name = 'SEASHELL!', hint = 'TRY DIGGING RIGHT BESIDE AN ISLAND',
+    reward = 'shell', slot = 'hat_shell' },
+  { id = 'echobark', name = 'ECHO SQUAWK!', hint = 'TWO CAPTAINS SHOUT AT THE SAME MOMENT' },
+  { id = 'bootsong', name = 'BOOT SONG', hint = 'STOP SAILING AND JUST LISTEN A WHILE' },
+  { id = 'fishfriend', name = 'FISH FRIEND!', hint = "PARK ON AN ICY SEA AND DON'T MOVE",
+    reward = 'fish', slot = 'hat_fish' },
+  { id = 'luckycoin', name = 'LUCKY STREAK!', hint = 'OPEN EVERY CHEST BEFORE ANY BATTLE' },
+  { id = 'tightrope', name = 'NOBODY WOBBLED!', hint = 'WIN THE PLANK FIGHT, NEVER STEP ON IT' },
+  { id = 'sogybird', name = 'POLLY PLOPPED!', hint = 'GIVE THAT SNEAKY BIRD A GOOD SHOVE' },
+  { id = 'wheee', name = 'DOUBLE SLIDE!', hint = 'SKID A LONG, LONG WAY ON THE ICE' },
+  { id = 'birdsquad', name = 'BIRDS OF A FEATHER', hint = 'BRING A BIRD TO MEET A BIRD' },
+  { id = 'hotfoot', name = 'HOT FOOT HARBOR!', hint = 'DANCE THROUGH THE FIRE SEA UNTOUCHED' },
+  { id = 'kindtrader', name = 'KINDNESS OF STRANGERS', hint = 'VISIT A TRADER WITH EMPTY POCKETS' },
+  { id = 'nestking', name = 'KING OF THE NEST', hint = 'HOLD THE HIGH SPOT ALL BATTLE' },
+  { id = 'sorryisland', name = 'SORRY, ISLAND!', hint = 'SOME SHIPS JUST KEEP ON BUMPING' },
+  { id = 'raftup', name = 'RAFT-UP!', hint = 'TWO SHIPS, ONE COZY SPOT' },
+  { id = 'grandma', name = 'GRANDMA ABOARD!', hint = 'A SAD PARROT KNOWS WHERE THE BOX RATTLES',
+    slot = 'slot_grandma' },
 }
+
+-- DEEDS: a visible achievements checklist (unlike SECRETS, the goal is shown
+-- before it's earned). Counter deeds carry `key`/`goal` (progress reads from
+-- meta.data.counts[key]); collection deeds carry `flagKeys`/`goal` (progress
+-- is how many of those per-item flags are set). `hatrack` and `shipshape`
+-- read other meta state directly (see game.deedProgress) and carry neither.
+-- `src/game.lua`'s earnDeed/deedTick/deedFlag are the only writers of
+-- meta.data.deeds/meta.data.counts. `reward` (an OUTFITS id) is optional --
+-- earnDeed unlocks it via game.unlockHat.
+M.DEEDS = {
+  { id = 'firstpal', name = 'WELCOME ABOARD', goalText = 'RECRUIT YOUR FIRST PAL' },
+  { id = 'firstbond', name = 'BEST MATES', goalText = 'FORGE YOUR FIRST BOND' },
+  { id = 'xmarks', name = 'X MARKS THE SPOT', goalText = 'DIG UP THE BURIED MAP PRIZE' },
+  { id = 'newvoyage', name = 'NEW VOYAGE, WHO DIS', goalText = 'START A NEW VOYAGE+' },
+  { id = 'cannoncareer', name = 'CANNON CAREER', goalText = 'LAND 25 PERFECT HITS', key = 'perfectHits', goal = 25 },
+  { id = 'shipwrecker', name = 'SHIPWRECKER', goalText = 'WIN 15 SHIP BATTLES', key = 'shipsSunk', goal = 15 },
+  { id = 'boardingparty', name = 'BOARDING PARTY', goalText = 'WIN 15 DECK BATTLES', key = 'deckWins', goal = 15 },
+  { id = 'goldhoarder', name = 'GOLD HOARDER', goalText = 'BANK 500 GOLD', key = 'goldBanked', goal = 500 },
+  { id = 'chestchaser', name = 'CHEST CHASER', goalText = 'OPEN 30 CHESTS', key = 'chestsOpened', goal = 30 },
+  { id = 'digdog', name = 'DIG DOG', goalText = 'DIG 20 TIMES', key = 'digs', goal = 20 },
+  { id = 'seenseas', name = 'SEEN THE SEAS', goalText = 'SAIL ALL 4 SEA TYPES',
+    flagKeys = { 'biome_calm', 'biome_icy', 'biome_foggy', 'biome_volcano' }, goal = 4 },
+  { id = 'deckexplorer', name = 'DECK EXPLORER', goalText = 'FIGHT ON ALL 8 DECKS',
+    flagKeys = { 'deck_classic', 'deck_gangplank', 'deck_lshape', 'deck_twinDecks',
+      'deck_crowsnest', 'deck_bigDeck', 'deck_barricade', 'deck_tidepool' }, goal = 8 },
+  { id = 'fleetspotter', name = 'FLEET SPOTTER', goalText = 'DEFEAT EVERY SHIP CLASS',
+    flagKeys = { 'fleet_sloop', 'fleet_brig', 'fleet_fireship', 'fleet_manowar' }, goal = 4 },
+  { id = 'hatrack', name = 'HAT RACK', goalText = 'OWN ALL 9 BASE HATS' },
+  { id = 'fullpowder', name = 'FULL POWDER', goalText = 'FIRE EVERY SHOT TYPE',
+    flagKeys = { 'shot_round', 'shot_chain', 'shot_grape', 'shot_fire' }, goal = 4 },
+  { id = 'kingtoppler', name = 'KING TOPPLER', goalText = 'WIN A VOYAGE' },
+  { id = 'krakentamer', name = 'KRAKEN TAMER', goalText = 'DEFEAT THE KRAKEN', reward = 'kraken' },
+  { id = 'shipshape', name = 'SHIPSHAPE', goalText = 'MAX EVERY HOME PORT UPGRADE' },
+}
+
+-- All-deeds prize: GOLD BANDANA (an OUTFITS id), the 100% completion unlock.
+-- Not a per-deed `reward` since it depends on every deed, not one -- checked
+-- in game.earnDeed after each earn via M.checkAllDeeds().
+M.ALL_DEEDS_REWARD = 'goldband'
 
 -- Perk picks: two options per role at milestone levels 2/4/6, both
 -- good, effects limited to flat stat deltas so game.statsOf stays a single
 -- choke point. `icon` keys a small sprite drawn on the loot pick card.
-M.PERKS = {
-  captain = {
-    [2] = { { id = 'capBoots', name = 'BIG BOOTS', desc = '+1 MOVE', icon = 'boots', effects = { move = 1 } },
-      { id = 'capBelly', name = 'TOUGH BELLY', desc = '+4 HP', icon = 'belly', effects = { hp = 4 } } },
-    [4] = { { id = 'capArms', name = 'LONG ARMS', desc = '+1 RANGE', icon = 'arms', effects = { range = 1 } },
-      { id = 'capMuscle', name = 'STRONG ARMS', desc = '+2 ATK', icon = 'muscle', effects = { atk = 2 } } },
-    [6] = { { id = 'capLegs', name = 'SEA LEGS', desc = '+1 MOVE +2 HP', icon = 'boots', effects = { move = 1, hp = 2 } },
-      { id = 'capHide', name = 'IRON HIDE', desc = '+6 HP', icon = 'belly', effects = { hp = 6 } } },
-  },
-  deckhand = {
-    [2] = { { id = 'dhBoots', name = 'BIG BOOTS', desc = '+1 MOVE', icon = 'boots', effects = { move = 1 } },
-      { id = 'dhBelly', name = 'TOUGH BELLY', desc = '+4 HP', icon = 'belly', effects = { hp = 4 } } },
-    [4] = { { id = 'dhArms', name = 'LONG ARMS', desc = '+1 RANGE', icon = 'arms', effects = { range = 1 } },
-      { id = 'dhMuscle', name = 'STRONG ARMS', desc = '+2 ATK', icon = 'muscle', effects = { atk = 2 } } },
-    [6] = { { id = 'dhLegs', name = 'SEA LEGS', desc = '+1 MOVE +2 HP', icon = 'boots', effects = { move = 1, hp = 2 } },
-      { id = 'dhHide', name = 'IRON HIDE', desc = '+6 HP', icon = 'belly', effects = { hp = 6 } } },
-  },
-  strongman = {
-    [2] = { { id = 'smBoots', name = 'BIG BOOTS', desc = '+1 MOVE', icon = 'boots', effects = { move = 1 } },
-      { id = 'smBelly', name = 'TOUGH BELLY', desc = '+4 HP', icon = 'belly', effects = { hp = 4 } } },
-    [4] = { { id = 'smArms', name = 'LONG ARMS', desc = '+1 RANGE', icon = 'arms', effects = { range = 1 } },
-      { id = 'smMuscle', name = 'STRONG ARMS', desc = '+2 ATK', icon = 'muscle', effects = { atk = 2 } } },
-    [6] = { { id = 'smLegs', name = 'SEA LEGS', desc = '+1 MOVE +2 HP', icon = 'boots', effects = { move = 1, hp = 2 } },
-      { id = 'smHide', name = 'IRON HIDE', desc = '+6 HP', icon = 'belly', effects = { hp = 6 } } },
-  },
-  sharpshooter = {
-    [2] = { { id = 'ssBoots', name = 'BIG BOOTS', desc = '+1 MOVE', icon = 'boots', effects = { move = 1 } },
-      { id = 'ssBelly', name = 'TOUGH BELLY', desc = '+4 HP', icon = 'belly', effects = { hp = 4 } } },
-    [4] = { { id = 'ssArms', name = 'LONG ARMS', desc = '+1 RANGE', icon = 'arms', effects = { range = 1 } },
-      { id = 'ssMuscle', name = 'STRONG ARMS', desc = '+2 ATK', icon = 'muscle', effects = { atk = 2 } } },
-    [6] = { { id = 'ssLegs', name = 'SEA LEGS', desc = '+1 MOVE +2 HP', icon = 'boots', effects = { move = 1, hp = 2 } },
-      { id = 'ssHide', name = 'IRON HIDE', desc = '+6 HP', icon = 'belly', effects = { hp = 6 } } },
-  },
-  medic = {
-    [2] = { { id = 'mdBoots', name = 'BIG BOOTS', desc = '+1 MOVE', icon = 'boots', effects = { move = 1 } },
-      { id = 'mdBelly', name = 'TOUGH BELLY', desc = '+4 HP', icon = 'belly', effects = { hp = 4 } } },
-    [4] = { { id = 'mdArms', name = 'LONG ARMS', desc = '+1 RANGE', icon = 'arms', effects = { range = 1 } },
-      { id = 'mdMuscle', name = 'STRONG ARMS', desc = '+2 ATK', icon = 'muscle', effects = { atk = 2 } } },
-    [6] = { { id = 'mdLegs', name = 'SEA LEGS', desc = '+1 MOVE +2 HP', icon = 'boots', effects = { move = 1, hp = 2 } },
-      { id = 'mdHide', name = 'IRON HIDE', desc = '+6 HP', icon = 'belly', effects = { hp = 6 } } },
-  },
+local PERK_TEMPLATE = {
+  [2] = { { suffix = 'Boots', name = 'BIG BOOTS', desc = '+1 MOVE', icon = 'boots', effects = { move = 1 } },
+    { suffix = 'Belly', name = 'TOUGH BELLY', desc = '+4 HP', icon = 'belly', effects = { hp = 4 } } },
+  [4] = { { suffix = 'Arms', name = 'LONG ARMS', desc = '+1 RANGE', icon = 'arms', effects = { range = 1 } },
+    { suffix = 'Muscle', name = 'STRONG ARMS', desc = '+2 ATK', icon = 'muscle', effects = { atk = 2 } } },
+  [6] = { { suffix = 'Legs', name = 'SEA LEGS', desc = '+1 MOVE +2 HP', icon = 'boots', effects = { move = 1, hp = 2 } },
+    { suffix = 'Hide', name = 'IRON HIDE', desc = '+6 HP', icon = 'belly', effects = { hp = 6 } } },
 }
+
+local PERK_ROLE_PREFIXES = {
+  { role = 'captain', prefix = 'cap' },
+  { role = 'deckhand', prefix = 'dh' },
+  { role = 'strongman', prefix = 'sm' },
+  { role = 'sharpshooter', prefix = 'ss' },
+  { role = 'medic', prefix = 'md' },
+  { role = 'grandma', prefix = 'gm' },
+}
+
+M.PERKS = {}
+for _, entry in ipairs(PERK_ROLE_PREFIXES) do
+  local roleTbl = {}
+  for level, pair in pairs(PERK_TEMPLATE) do
+    local perks = {}
+    for i, perk in ipairs(pair) do
+      perks[i] = { id = entry.prefix .. perk.suffix, name = perk.name, desc = perk.desc,
+        icon = perk.icon, effects = perk.effects }
+    end
+    roleTbl[level] = perks
+  end
+  M.PERKS[entry.role] = roleTbl
+end
 
 M.FOE_CAPTAINS = {
   'RUSTY ROGER', 'SQUID SID', 'GALE GRETA', 'IRON IVAN', 'SALTY SUE',
@@ -297,6 +353,15 @@ M.BARKS = {
     ko = { 'ZZZ NAP TIME!', 'NIGHT NIGHT!' },
     victory = { 'ALL PATCHED UP', 'WE WON!' },
     special = { 'PATCH UP!', 'GOOD AS NEW!' },
+  },
+  grandma = {
+    battleStart = { "SOUP'S ON!", 'BEHAVE NOW!' },
+    perfect = { 'THAT WAS NICE!', 'GOOD FORM!' },
+    levelUp = { 'STILL GOT IT!', 'LEVEL UP!' },
+    bestMates = { 'SWEET CHILD!', 'BEST MATES!' },
+    ko = { 'ZZZ NAP TIME!', 'NIGHT NIGHT!' },
+    victory = { "WHO'S HUNGRY?", 'WE WON!' },
+    special = { 'NOODLE WHIP!', 'WHAP WHAP!' },
   },
   king = {
     battleStart = { 'BOW TO ME!', 'YE FOOLS!' },
@@ -365,6 +430,13 @@ end
 function M.secretById(id)
   for _, s in ipairs(M.SECRETS) do
     if s.id == id then return s end
+  end
+  return nil
+end
+
+function M.deedById(id)
+  for _, d in ipairs(M.DEEDS) do
+    if d.id == id then return d end
   end
   return nil
 end
